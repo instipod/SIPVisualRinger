@@ -10,9 +10,14 @@
 #include "esp_eth.h"
 #include "esp_netif.h"
 #include "esp_event.h"
-// mbedtls for AES encryption
+// mbedtls for AES encryption and CSPRNG
 #include "mbedtls/aes.h"
 #include "mbedtls/base64.h"
+#include "mbedtls/ctr_drbg.h"
+#include "mbedtls/entropy.h"
+extern "C" {
+#include "bootloader_random.h"
+}
 
 // Build configuration
 #define WS2811_PIN 12
@@ -59,6 +64,10 @@ String webUsername = "admin";
 String webPassword = "admin";
 const unsigned long SESSION_TIMEOUT = 3600000; // 1 hour in milliseconds
 const String AUTH_SECRET = "SIPVisualRinger2024"; // Secret key for cookie encryption
+
+// Cryptographic random number generator
+mbedtls_entropy_context entropy;
+mbedtls_ctr_drbg_context ctr_drbg;
 
 // MDNS variables
 bool mdnsEnabled = true;
@@ -296,7 +305,28 @@ void saveConfiguration() {
   Serial.println("Configuration saved!");
 }
 
-// AES encryption for cookie with random IV
+// Initialize cryptographic random number generator with ESP32 hardware entropy
+void initCryptoRNG() {
+  // Enable the internal voltage reference as random seed
+  // Disables WiFi and BLE
+  bootloader_random_enable();
+
+  mbedtls_entropy_init(&entropy);
+  mbedtls_ctr_drbg_init(&ctr_drbg);
+
+  // The entropy context will automatically use ESP32's hardware RNG
+  // which includes the SAR ADC and other entropy sources via esp_fill_random()
+  int ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
+                                   NULL, 0);
+
+  if (ret != 0) {
+    Serial.printf("Failed to initialize CTR-DRBG: %d\n", ret);
+  } else {
+    Serial.println("Cryptographic RNG initialized with hardware entropy");
+  }
+}
+
+// AES encryption for cookie with cryptographically secure random IV
 String encryptCookie(String data) {
   // Pad data to multiple of 16 bytes (AES block size)
   int paddingLength = 16 - (data.length() % 16);
@@ -310,10 +340,12 @@ String encryptCookie(String data) {
     key[i] = AUTH_SECRET[i % AUTH_SECRET.length()] ^ (i * 7);
   }
 
-  // Generate random IV (16 bytes)
+  // Generate cryptographically secure random IV (16 bytes) using CTR-DRBG
   unsigned char iv[16];
-  for (int i = 0; i < 16; i++) {
-    iv[i] = random(0, 256);
+  int ret = mbedtls_ctr_drbg_random(&ctr_drbg, iv, 16);
+  if (ret != 0) {
+    Serial.printf("Failed to generate random IV: %d\n", ret);
+    return "";
   }
 
   unsigned char encrypted[256];
@@ -758,10 +790,13 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
+  Serial.println("SIP Alerter is starting...");
+
+  // Initialize cryptographic random number generator early
+  initCryptoRNG();
+
   ethMACAddress = ETH.macAddress();
   deviceHostname = "VisualAlert-" + ethMACAddress.substring(ethMACAddress.length() - 5, ethMACAddress.length() - 1);
-
-  Serial.println("SIP Alerter is starting...");
 
   strip.begin();
   strip.setBrightness(25);
