@@ -3,7 +3,8 @@
 #include <ETH.h>
 #include <MD5Builder.h>
 
-#define SIP_REGISTER_INTERVAL 3600000 // 1 hour
+#define SIP_REGISTER_INTERVAL 600000 // 10 minutes
+#define SIP_REGISTER_EXPIRES 900 // 15 minutes
 #define SIP_USER_AGENT "ESP32-SIP/1.1"
 
 class SIPClient {

@@ -88,7 +88,9 @@ void SIPClient::begin_registration() {
     registerMsg += "CSeq: 1 REGISTER\r\n";
     registerMsg += "Contact: <sip:" + sipUsername + "@" + localIP + ":" + String(localSipPort) + ">\r\n";
     registerMsg += "Allow: INVITE, ACK, CANCEL, BYE, OPTIONS\r\n";
-    registerMsg += "Expires: 3600\r\n";
+    registerMsg += "Expires: ";
+    registerMsg += String(SIP_REGISTER_EXPIRES);
+    registerMsg += "\r\n";
     registerMsg += "User-Agent: ";
     registerMsg += SIP_USER_AGENT;
     registerMsg += "\r\n";
@@ -198,7 +200,9 @@ void SIPClient::handle_auth_challenge(String message, String remoteIP, int remot
     registerMsg += "algorithm=" + algorithm + "\r\n";
 
     registerMsg += "Allow: INVITE, ACK, CANCEL, BYE, OPTIONS\r\n";
-    registerMsg += "Expires: 3600\r\n";
+    registerMsg += "Expires: ";
+    registerMsg += String(SIP_REGISTER_EXPIRES);
+    registerMsg += "\r\n";
     registerMsg += "User-Agent: ";
     registerMsg += SIP_USER_AGENT;
     registerMsg += "\r\n";
