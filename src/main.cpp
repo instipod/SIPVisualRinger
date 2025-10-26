@@ -10,6 +10,9 @@
 #include "esp_eth.h"
 #include "esp_netif.h"
 #include "esp_event.h"
+// mbedtls for AES encryption
+#include "mbedtls/aes.h"
+#include "mbedtls/base64.h"
 
 // Build configuration
 #define WS2811_PIN 12
@@ -50,6 +53,12 @@ String sipPassword = "";
 String sipRealm = "";
 SIPClient sipLineOne = SIPClient(5060);
 SIPClient sipLineTwo = SIPClient(5061);
+
+// Web authentication variables
+String webUsername = "admin";
+String webPassword = "admin";
+const unsigned long SESSION_TIMEOUT = 3600000; // 1 hour in milliseconds
+const String AUTH_SECRET = "SIPVisualRinger2024"; // Secret key for cookie encryption
 
 // MDNS variables
 bool mdnsEnabled = true;
@@ -252,16 +261,18 @@ void initEthernet() {
 
 void loadConfiguration() {
   preferences.begin("config", false);
-  
+
   deviceHostname = preferences.getString("hostname", "VisualAlert-" + ethMACAddress.substring(ethMACAddress.length() - 5, ethMACAddress.length() - 1));
   sipServer = preferences.getString("sipServer", "");
   sipPort = preferences.getInt("sipPort", 5060);
   sipUsername = preferences.getString("sipUser", "");
   sipPassword = preferences.getString("sipPass", "");
   sipRealm = preferences.getString("sipRealm", "");
-  
+  webUsername = preferences.getString("webUser", "admin");
+  webPassword = preferences.getString("webPass", "admin");
+
   preferences.end();
-  
+
   Serial.println("Configuration loaded:");
   Serial.println("Hostname: " + deviceHostname);
   Serial.println("SIP Server: " + sipServer);
@@ -270,22 +281,257 @@ void loadConfiguration() {
 
 void saveConfiguration() {
   preferences.begin("config", false);
-  
+
   preferences.putString("hostname", deviceHostname);
   preferences.putString("sipServer", sipServer);
   preferences.putInt("sipPort", sipPort);
   preferences.putString("sipUser", sipUsername);
   preferences.putString("sipPass", sipPassword);
   preferences.putString("sipRealm", sipRealm);
-  
+  preferences.putString("webUser", webUsername);
+  preferences.putString("webPass", webPassword);
+
   preferences.end();
-  
+
   Serial.println("Configuration saved!");
 }
 
+// AES encryption for cookie with random IV
+String encryptCookie(String data) {
+  // Pad data to multiple of 16 bytes (AES block size)
+  int paddingLength = 16 - (data.length() % 16);
+  for (int i = 0; i < paddingLength; i++) {
+    data += (char)paddingLength;
+  }
+
+  unsigned char key[32];
+  // Create 256-bit key from secret
+  for (int i = 0; i < 32; i++) {
+    key[i] = AUTH_SECRET[i % AUTH_SECRET.length()] ^ (i * 7);
+  }
+
+  // Generate random IV (16 bytes)
+  unsigned char iv[16];
+  for (int i = 0; i < 16; i++) {
+    iv[i] = random(0, 256);
+  }
+
+  unsigned char encrypted[256];
+
+  mbedtls_aes_context aes;
+  mbedtls_aes_init(&aes);
+  mbedtls_aes_setkey_enc(&aes, key, 256);
+
+  // Encrypt
+  const unsigned char* input = (const unsigned char*)data.c_str();
+  unsigned char iv_copy[16];
+  memcpy(iv_copy, iv, 16); // CBC mode modifies IV, so use a copy
+
+  for (size_t i = 0; i < data.length(); i += 16) {
+    mbedtls_aes_crypt_cbc(&aes, MBEDTLS_AES_ENCRYPT, 16, iv_copy, input + i, encrypted + i);
+  }
+
+  mbedtls_aes_free(&aes);
+
+  // Combine IV + encrypted data
+  unsigned char combined[272]; // 16 bytes IV + 256 bytes max encrypted data
+  memcpy(combined, iv, 16);
+  memcpy(combined + 16, encrypted, data.length());
+
+  // Base64 encode the combined IV + encrypted data
+  unsigned char base64Output[512];
+  size_t outputLen;
+  mbedtls_base64_encode(base64Output, sizeof(base64Output), &outputLen, combined, 16 + data.length());
+
+  return String((char*)base64Output);
+}
+
+// AES decryption for cookie with IV extraction
+String decryptCookie(String data) {
+  // Base64 decode
+  unsigned char decoded[512];
+  size_t decodedLen;
+  int ret = mbedtls_base64_decode(decoded, sizeof(decoded), &decodedLen,
+                                    (const unsigned char*)data.c_str(), data.length());
+  if (ret != 0 || decodedLen < 16) {
+    return ""; // Need at least 16 bytes for IV
+  }
+
+  unsigned char key[32];
+  // Create same 256-bit key from secret
+  for (int i = 0; i < 32; i++) {
+    key[i] = AUTH_SECRET[i % AUTH_SECRET.length()] ^ (i * 7);
+  }
+
+  // Extract IV from first 16 bytes
+  unsigned char iv[16];
+  memcpy(iv, decoded, 16);
+
+  // Encrypted data starts after IV
+  unsigned char* encryptedData = decoded + 16;
+  size_t encryptedLen = decodedLen - 16;
+
+  unsigned char output[256];
+
+  mbedtls_aes_context aes;
+  mbedtls_aes_init(&aes);
+  mbedtls_aes_setkey_dec(&aes, key, 256);
+
+  // Decrypt
+  for (size_t i = 0; i < encryptedLen; i += 16) {
+    mbedtls_aes_crypt_cbc(&aes, MBEDTLS_AES_DECRYPT, 16, iv, encryptedData + i, output + i);
+  }
+
+  mbedtls_aes_free(&aes);
+
+  // Remove padding
+  int paddingLength = output[encryptedLen - 1];
+  if (paddingLength > 0 && paddingLength <= 16) {
+    encryptedLen -= paddingLength;
+  }
+
+  output[encryptedLen] = '\0';
+  return String((char*)output);
+}
+
+// Create authentication cookie with expiry timestamp
+String createAuthCookie() {
+  unsigned long expiryTime = millis() + SESSION_TIMEOUT;
+  String cookieData = String(expiryTime) + "|authenticated";
+  return encryptCookie(cookieData);
+}
+
+// Check if user is authenticated via cookie
+bool isAuthenticated() {
+  if (!server.hasHeader("Cookie")) {
+    return false;
+  }
+
+  String cookie = server.header("Cookie");
+  int authStart = cookie.indexOf("auth=");
+  if (authStart == -1) {
+    return false;
+  }
+
+  authStart += 5; // Skip "auth="
+  int authEnd = cookie.indexOf(';', authStart);
+  String authCookie;
+  if (authEnd == -1) {
+    authCookie = cookie.substring(authStart);
+  } else {
+    authCookie = cookie.substring(authStart, authEnd);
+  }
+
+  // URL decode the cookie value (replace %XX with actual characters)
+  authCookie.replace("%2B", "+");
+  authCookie.replace("%2F", "/");
+  authCookie.replace("%3D", "=");
+
+  // Decrypt and validate cookie
+  String decrypted = decryptCookie(authCookie);
+  if (decrypted.length() == 0) {
+    return false;
+  }
+
+  int separatorPos = decrypted.indexOf('|');
+  if (separatorPos == -1) {
+    return false;
+  }
+
+  unsigned long expiryTime = decrypted.substring(0, separatorPos).toInt();
+  String authStatus = decrypted.substring(separatorPos + 1);
+
+  // Check if cookie is valid and not expired
+  if (authStatus == "authenticated" && millis() < expiryTime) {
+    return true;
+  }
+
+  return false;
+}
+
+// Redirect to login page
+void redirectToLogin() {
+  server.sendHeader("Location", "/login");
+  server.send(303);
+}
+
 void initWebServer() {
+  // Login page
+  server.on("/login", HTTP_GET, []() {
+    String html = "<!DOCTYPE html><html><head>";
+    html += "<title>Login - ESP32 SIP Device</title>";
+    html += "<style>body{font-family:Arial;margin:0;padding:0;display:flex;justify-content:center;align-items:center;height:100vh;background:#f0f0f0;} ";
+    html += ".login-box{background:white;padding:40px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1);width:300px;} ";
+    html += "h1{text-align:center;color:#333;margin-bottom:30px;} ";
+    html += "input[type=text],input[type=password]{width:100%;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:5px;box-sizing:border-box;} ";
+    html += "input[type=submit]{width:100%;padding:12px;background:#4CAF50;color:white;border:none;border-radius:5px;cursor:pointer;font-size:16px;margin-top:10px;} ";
+    html += "input[type=submit]:hover{background:#45a049;} ";
+    html += "label{color:#666;font-size:14px;} ";
+    html += ".error{color:red;text-align:center;margin-bottom:10px;}</style>";
+    html += "</head><body>";
+    html += "<div class='login-box'>";
+    html += "<h1>ESP32 SIP Device</h1>";
+
+    // Show error message if login failed
+    if (server.hasArg("error")) {
+      html += "<div class='error'>Invalid username or password</div>";
+    }
+
+    html += "<form action='/login' method='POST'>";
+    html += "<label>Username:</label>";
+    html += "<input type='text' name='username' required autofocus>";
+    html += "<label>Password:</label>";
+    html += "<input type='password' name='password' required>";
+    html += "<input type='submit' value='Login'>";
+    html += "</form>";
+    html += "</div>";
+    html += "</body></html>";
+    server.send(200, "text/html", html);
+  });
+
+  // Login POST handler
+  server.on("/login", HTTP_POST, []() {
+    String username = server.arg("username");
+    String password = server.arg("password");
+
+    if (username == webUsername && password == webPassword) {
+      // Create encrypted auth cookie
+      String authCookie = createAuthCookie();
+
+      // Set cookie with HttpOnly flag (as much as possible in this library)
+      String cookieHeader = "auth=" + authCookie + "; Path=/; Max-Age=3600; SameSite=Strict";
+      server.sendHeader("Set-Cookie", cookieHeader);
+      server.sendHeader("Location", "/");
+      server.send(303);
+
+      Serial.println("User logged in successfully");
+    } else {
+      // Redirect back to login with error
+      server.sendHeader("Location", "/login?error=1");
+      server.send(303);
+
+      Serial.println("Failed login attempt - username: " + username);
+    }
+  });
+
+  // Logout handler
+  server.on("/logout", HTTP_GET, []() {
+    // Clear the auth cookie
+    server.sendHeader("Set-Cookie", "auth=; Path=/; Max-Age=0");
+    server.sendHeader("Location", "/login");
+    server.send(303);
+
+    Serial.println("User logged out");
+  });
+
   // Root page - configuration interface
   server.on("/", HTTP_GET, []() {
+    // Check authentication
+    if (!isAuthenticated()) {
+      redirectToLogin();
+      return;
+    }
+
     // Get current IP address dynamically
     String currentIP = ETH.localIP().toString();
     
@@ -294,10 +540,13 @@ void initWebServer() {
     html += "<style>body{font-family:Arial;margin:20px;} ";
     html += "input[type=text],input[type=number],input[type=password]{width:300px;padding:8px;margin:5px 0;} ";
     html += "input[type=submit]{padding:10px 20px;background:#4CAF50;color:white;border:none;cursor:pointer;} ";
+    html += ".logout-btn{float:right;padding:10px 20px;background:#f44336;color:white;border:none;cursor:pointer;text-decoration:none;border-radius:5px;} ";
     html += "label{display:inline-block;width:150px;} ";
-    html += ".status{background:#f0f0f0;padding:15px;margin:20px 0;border-radius:5px;}</style>";
+    html += ".status{background:#f0f0f0;padding:15px;margin:20px 0;border-radius:5px;} ";
+    html += "header{overflow:auto;margin-bottom:20px;}</style>";
     html += "</head><body>";
-    html += "<h1>ESP32 SIP/LLDP Device</h1>";
+    html += "<header><h1 style='float:left;margin:0;'>ESP32 SIP/LLDP Device</h1>";
+    html += "<a href='/logout' class='logout-btn'>Logout</a></header><div style='clear:both;'></div>";
     
     // Status section
     html += "<div class='status'>";
@@ -348,23 +597,35 @@ void initWebServer() {
   
   // Save configuration
   server.on("/save", HTTP_POST, []() {
+    // Check authentication
+    if (!isAuthenticated()) {
+      redirectToLogin();
+      return;
+    }
+
     if (server.hasArg("hostname")) deviceHostname = server.arg("hostname");
     if (server.hasArg("sipServer")) sipServer = server.arg("sipServer");
     if (server.hasArg("sipPort")) sipPort = server.arg("sipPort").toInt();
     if (server.hasArg("sipUsername")) sipUsername = server.arg("sipUsername");
     if (server.hasArg("sipPassword")) sipPassword = server.arg("sipPassword");
     if (server.hasArg("sipRealm")) sipRealm = server.arg("sipRealm");
-    
+
     saveConfiguration();
-    
+
     ETH.setHostname(deviceHostname.c_str());
-    
+
     server.sendHeader("Location", "/");
     server.send(303);
   });
-  
+
   // Manual SIP registration
   server.on("/register", HTTP_POST, []() {
+    // Check authentication
+    if (!isAuthenticated()) {
+      redirectToLogin();
+      return;
+    }
+
     sipLineOne.begin_registration();
     sipLineTwo.begin_registration();
     server.sendHeader("Location", "/");
@@ -489,6 +750,7 @@ void initMDNS() {
   if (mdnsEnabled) {
     MDNS.begin(deviceHostname.c_str());
     MDNS.addService("http", "_tcp", 80);
+    MDNS.addService("visualalert", "_tcp", 80);
   }
 }
 
