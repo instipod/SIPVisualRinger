@@ -61,3 +61,13 @@ void Runtime::handle() {
 
     lldp.handle();
 }
+
+void Runtime::ip_begin() {
+    sipLine1.init();
+    sipLine2.init();
+}
+
+void Runtime::ip_end() {
+    sipLine1.end();
+    sipLine2.end();
+}

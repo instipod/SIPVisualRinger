@@ -37,6 +37,8 @@ class SIPClient {
         static String calculateMD5(String input);
         static String extractParameter(String message, String startDelim, String endDelim);
 
+        void init();
+        void end();
         bool is_registered();
         bool is_ringing();
 

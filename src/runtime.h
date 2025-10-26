@@ -35,6 +35,8 @@ class Runtime {
         void init();
         void load_configuration();
         void save_configuration();
+        void ip_begin();
+        void ip_end();
         void handle();
 };
 #endif

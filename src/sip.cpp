@@ -375,6 +375,17 @@ void SIPClient::handle() {
     this->handle_sip_registration();
 }
 
+void SIPClient::init() {
+    udpSIP.begin(sipPort);
+}
+
+void SIPClient::end() {
+    if (this->is_registered()) {
+        this->end_registration(true);
+    }
+    udpSIP.stop();
+}
+
 SIPClient::SIPClient(int localSipPort) {
     this->sipServer = "";
     this->sipPort = 5060;
@@ -390,8 +401,6 @@ SIPClient::SIPClient(int localSipPort) {
     this->currentToTag = "";
     this->authAttempts = 0;
     this->lastAuthAttempt = 0;
-
-    udpSIP.begin(sipPort);
 }
 
 SIPClient::SIPClient(int localSipPort, String sipServer, int sipPort, String sipUsername, String sipPassword, String sipRealm) {

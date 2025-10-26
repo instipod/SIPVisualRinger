@@ -32,13 +32,14 @@ unsigned long ledFlashInterval = LED_FAST_FLASH;
 
 void onIPAddressAssigned() {
   runtime.currentLedMode = LED_IDLE;
+
+  runtime.ip_begin();
 }
 
 void onIPAddressLost() {
   runtime.currentLedMode = LED_CONNECTING;
 
-  runtime.sipLine1.end_registration(true);
-  runtime.sipLine2.end_registration(true);
+  runtime.ip_end();
 }
 
 void WiFiEvent(WiFiEvent_t event) {
