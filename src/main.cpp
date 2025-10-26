@@ -6,7 +6,6 @@
 #include <Preferences.h>
 #include <MD5Builder.h>
 #include <ESPmDNS.h>
-#include <ArduinoOTA.h>
 #include <Adafruit_NeoPixel.h>
 // ESP-IDF includes for raw Ethernet frames
 #include "esp_eth.h"
@@ -840,12 +839,6 @@ void handleSIP() {
   }
 }
 
-void initOTA() {
-  ArduinoOTA.setHostname(deviceHostname.c_str());
-  ArduinoOTA.setMdnsEnabled(mdnsEnabled);
-  ArduinoOTA.begin();
-}
-
 void initMDNS() {
   if (mdnsEnabled) {
     MDNS.begin(deviceHostname.c_str());
@@ -868,8 +861,6 @@ void setup() {
   initEthernet();
 
   initMDNS();
-
-  initOTA();
 
   initWebServer();
 
@@ -896,9 +887,6 @@ void setup() {
 void loop() {
   // Handle web server
   server.handleClient();
- 
-  // Handle OTA
-  ArduinoOTA.handle();
   
   // Handle SIP messages
   handleSIP();
