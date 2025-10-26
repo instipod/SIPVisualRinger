@@ -49,7 +49,8 @@ int sipPort = 5060;
 String sipUsername = "";
 String sipPassword = "";
 String sipRealm = "";
-SIPClient sipLineOne = SIPClient("", 5060, "", "", "");
+SIPClient sipLineOne = SIPClient(5060);
+SIPClient sipLineTwo = SIPClient(5061);
 
 // MDNS variables
 bool mdnsEnabled = true;
@@ -92,6 +93,7 @@ void onIPAddressLost() {
   currentLedMode = LED_CONNECTING;
 
   sipLineOne.end_registration(true);
+  sipLineTwo.end_registration(true);
 }
 
 void WiFiEvent(WiFiEvent_t event) {
@@ -365,6 +367,7 @@ void initWebServer() {
   // Manual SIP registration
   server.on("/register", HTTP_POST, []() {
     sipLineOne.begin_registration();
+    sipLineTwo.begin_registration();
     server.sendHeader("Location", "/");
     server.send(303);
   });
@@ -508,7 +511,7 @@ void setup() {
 
   initWebServer();
 
-  sipLineOne = SIPClient(sipServer, sipPort, sipUsername, sipPassword, sipRealm);
+  sipLineOne.update_credentials(sipServer, sipPort, sipUsername, sipPassword, sipRealm);
 
   // Wait a bit for Ethernet to fully initialize
   delay(500);
@@ -525,6 +528,7 @@ void setup() {
 
   if (sipServer != "") {
     sipLineOne.begin_registration();
+    sipLineTwo.begin_registration();
   }
 }
 
@@ -534,6 +538,7 @@ void loop() {
   
   // Handle SIP messages
   sipLineOne.handle();
+  sipLineTwo.handle();
   
   // Send LLDP broadcasts periodically
   if (lldpEnabled && ((millis() - lastLLDPTime) > lldpInterval)) {

@@ -44,10 +44,23 @@ bool SIPClient::is_ringing() {
 }
 
 void SIPClient::end_registration(bool networkLost) {
-    sipRegistered = false;
-    currentCallID = "";
-    currentFromTag = "";
-    currentToTag = "";
+    this->sipRegistered = false;
+    this->currentCallID = "";
+    this->currentFromTag = "";
+    this->currentToTag = "";
+    this->authAttempts = 0;
+}
+
+void SIPClient::update_credentials(String sipServer, int sipPort, String sipUsername, String sipPassword, String sipRealm) {
+    if (this->is_registered()) {
+        this->end_registration(false);
+    }
+
+    this->sipServer = sipServer;
+    this->sipPort = sipPort;
+    this->sipUsername = sipUsername;
+    this->sipPassword = sipPassword;
+    this->sipRealm = sipRealm;
 }
 
 void SIPClient::begin_registration() {
@@ -67,13 +80,13 @@ void SIPClient::begin_registration() {
     
     // Build REGISTER request (RFC 3261 compliant)
     String registerMsg = "REGISTER sip:" + sipServer + " SIP/2.0\r\n";
-    registerMsg += "Via: SIP/2.0/UDP " + localIP + ":" + String(sipPort) + ";branch=" + branch + ";rport\r\n";
+    registerMsg += "Via: SIP/2.0/UDP " + localIP + ":" + String(localSipPort) + ";branch=" + branch + ";rport\r\n";
     registerMsg += "Max-Forwards: 70\r\n";
     registerMsg += "From: <sip:" + sipUsername + "@" + sipServer + ">;tag=" + fromTag + "\r\n";
     registerMsg += "To: <sip:" + sipUsername + "@" + sipServer + ">\r\n";
     registerMsg += "Call-ID: " + callID + "\r\n";
     registerMsg += "CSeq: 1 REGISTER\r\n";
-    registerMsg += "Contact: <sip:" + sipUsername + "@" + localIP + ":" + String(sipPort) + ">\r\n";
+    registerMsg += "Contact: <sip:" + sipUsername + "@" + localIP + ":" + String(localSipPort) + ">\r\n";
     registerMsg += "Allow: INVITE, ACK, CANCEL, BYE, OPTIONS\r\n";
     registerMsg += "Expires: 3600\r\n";
     registerMsg += "User-Agent: ";
@@ -167,13 +180,13 @@ void SIPClient::handle_auth_challenge(String message, String remoteIP, int remot
     
     // Build authenticated REGISTER with same Call-ID and From tag
     String registerMsg = "REGISTER sip:" + sipServer + " SIP/2.0\r\n";
-    registerMsg += "Via: SIP/2.0/UDP " + localIP + ":" + String(sipPort) + ";branch=" + branch + ";rport\r\n";
+    registerMsg += "Via: SIP/2.0/UDP " + localIP + ":" + String(localSipPort) + ";branch=" + branch + ";rport\r\n";
     registerMsg += "Max-Forwards: 70\r\n";
     registerMsg += "From: <sip:" + sipUsername + "@" + sipServer + ">;tag=" + fromTag + "\r\n";
     registerMsg += "To: <sip:" + sipUsername + "@" + sipServer + ">\r\n";
     registerMsg += "Call-ID: " + callID + "\r\n";
     registerMsg += "CSeq: " + String(cseq) + " REGISTER\r\n";
-    registerMsg += "Contact: <sip:" + sipUsername + "@" + localIP + ":" + String(sipPort) + ">\r\n";
+    registerMsg += "Contact: <sip:" + sipUsername + "@" + localIP + ":" + String(localSipPort) + ">\r\n";
     
     // Build Authorization header with all parameters properly quoted
     registerMsg += "Authorization: Digest ";
@@ -224,7 +237,7 @@ void SIPClient::handle_invite_message(String message, String remoteIP, int remot
     ringing += "To: " + to + ";tag=" + currentToTag + "\r\n";
     ringing += "Call-ID: " + currentCallID + "\r\n";
     ringing += "CSeq: " + cseq + "\r\n";
-    ringing += "Contact: <sip:" + sipUsername + "@" + localIP + ":" + String(sipPort) + ">\r\n";
+    ringing += "Contact: <sip:" + sipUsername + "@" + localIP + ":" + String(localSipPort) + ">\r\n";
     ringing += "Content-Length: 0\r\n";
     ringing += "\r\n";
     
@@ -274,7 +287,7 @@ void SIPClient::handle_options_message(String message, String remoteIP, int remo
     ok += "To: " + to + "\r\n";
     ok += "Call-ID: " + callID + "\r\n";
     ok += "CSeq: " + cseq + "\r\n";
-    ok += "Contact: <sip:" + sipUsername + "@" + localIP + ":" + String(sipPort) + ">\r\n";
+    ok += "Contact: <sip:" + sipUsername + "@" + localIP + ":" + String(localSipPort) + ">\r\n";
     ok += "Accept: application/sdp\r\n";
     ok += "Accept-Language: en\r\n";
     ok += "Allow: INVITE, CANCEL, BYE, OPTIONS\r\n";
@@ -358,9 +371,29 @@ void SIPClient::handle() {
     this->handle_sip_registration();
 }
 
-SIPClient::SIPClient(String sipServer, int sipPort, String sipUsername, String sipPassword, String sipRealm) {
+SIPClient::SIPClient(int localSipPort) {
+    this->sipServer = "";
+    this->sipPort = 5060;
+    this->localSipPort = localSipPort;
+    this->sipUsername = "";
+    this->sipPassword = "";
+    this->sipRealm = "";
+
+    this->sipRegistered = false;
+    this->lastRegisterTime = 0;
+    this->currentCallID = "";
+    this->currentFromTag = "";
+    this->currentToTag = "";
+    this->authAttempts = 0;
+    this->lastAuthAttempt = 0;
+
+    udpSIP.begin(sipPort);
+}
+
+SIPClient::SIPClient(int localSipPort, String sipServer, int sipPort, String sipUsername, String sipPassword, String sipRealm) {
     this->sipServer = sipServer;
     this->sipPort = sipPort;
+    this->localSipPort = localSipPort;
     this->sipUsername = sipUsername;
     this->sipPassword = sipPassword;
     this->sipRealm = sipRealm;

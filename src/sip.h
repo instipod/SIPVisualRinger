@@ -10,6 +10,7 @@ class SIPClient {
     private:
         String sipServer;
         int sipPort;
+        int localSipPort;
         String sipUsername;
         String sipPassword;
         String sipRealm;
@@ -25,7 +26,8 @@ class SIPClient {
         WiFiUDP udpSIP;
 
     public:
-        SIPClient(String sipServer, int sipPort, String sipUsername, String sipPassword, String sipRealm);
+        SIPClient(int localSipPort);
+        SIPClient(int localSipPort, String sipServer, int sipPort, String sipUsername, String sipPassword, String sipRealm);
 
         static String generateCallID();
         static String generateTag();
@@ -37,6 +39,7 @@ class SIPClient {
 
         void begin_registration();
         void end_registration(bool networkLost);
+        void update_credentials(String sipServer, int sipPort, String sipUsername, String sipPassword, String sipRealm);
         
         void send_sip_message(String remoteIP, int remotePort, String message);
 
