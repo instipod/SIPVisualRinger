@@ -1,14 +1,26 @@
 #include <configstore.h>
 
 String ConfigStore::get_default_string(String key) {
-    return String("");
+    if (key == "deviceHostname") {
+        return "VisualAlert-ffff";
+    }
+    if (key == "webPassword") {
+        return "admin";
+    }
+    return "";
 }
 
 int ConfigStore::get_default_integer(String key) {
+    if (key == "sipPort1" || key == "sipPort2") {
+        return 5060;
+    }
     return 0;
 }
 
 bool ConfigStore::get_default_boolean(String key) {
+    if (key == "lldpEnabled" || key == "mdnsEnabled") {
+        return true;
+    }
     return false;
 }
 

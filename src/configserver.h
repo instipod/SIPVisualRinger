@@ -11,17 +11,17 @@
 
 class ConfigServer {
     private:
-        Runtime runtime;
+        Runtime &runtime;
         WebServer server = WebServer(80);
 
         String encrypt_cookie(String data);
         String decrypt_cookie(String data);
-        String create_auth_cookie();
+        String create_auth_cookie(String username);
     public:
-        unsigned long sessionTimeout;
+        unsigned long sessionTimeout = 3600000; // 1 hour
         String authSecret;
 
-        ConfigServer(Runtime& r) : runtime(r) {}
+        ConfigServer(Runtime &r) : runtime(r) {}
 
         void init();
         void handle();

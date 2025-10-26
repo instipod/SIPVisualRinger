@@ -13,12 +13,10 @@ String ConfigServer::encrypt_cookie(String data) {
     key[i] = authSecret[i % authSecret.length()] ^ (i * 7);
   }
 
-  // Generate cryptographically secure random IV (16 bytes) using CTR-DRBG
+  // Generate cryptographically secure random IV (16 bytes)
   unsigned char iv[16];
-  int ret = mbedtls_ctr_drbg_random(&runtime.ctr_drbg, iv, 16);
-  if (ret != 0) {
-    Serial.printf("Failed to generate random IV: %d\n", ret);
-    return "";
+  for (int i = 0; i < 16; i++) {
+    iv[i] = runtime.get_srandom_byte();
   }
 
   unsigned char encrypted[256];
@@ -56,9 +54,11 @@ String ConfigServer::decrypt_cookie(String data) {
   // Base64 decode
   unsigned char decoded[512];
   size_t decodedLen;
+
   int ret = mbedtls_base64_decode(decoded, sizeof(decoded), &decodedLen,
                                     (const unsigned char*)data.c_str(), data.length());
   if (ret != 0 || decodedLen < 16) {
+    Serial.println("Did not have enough data for an IV, invalid cookie.");
     return ""; // Need at least 16 bytes for IV
   }
 
@@ -100,19 +100,22 @@ String ConfigServer::decrypt_cookie(String data) {
 }
 
 // Create authentication cookie with expiry timestamp
-String ConfigServer::create_auth_cookie() {
+String ConfigServer::create_auth_cookie(String username) {
   unsigned long expiryTime = millis() + sessionTimeout;
-  String cookieData = String(expiryTime) + "|authenticated";
+  String cookieData = String(expiryTime) + "|authenticated|" + username;
   return encrypt_cookie(cookieData);
 }
 
 // Check if user is authenticated via cookie
 bool ConfigServer::is_authenticated() {
-  if (!server.hasHeader("Cookie")) {
+  if (!server.hasHeader("cookie") && !server.hasHeader("Cookie")) {
     return false;
   }
 
-  String cookie = server.header("Cookie");
+  String cookie = server.header("cookie");
+  if (cookie.isEmpty()) {
+    cookie = server.header("Cookie");
+  }
   int authStart = cookie.indexOf("auth=");
   if (authStart == -1) {
     return false;
@@ -143,12 +146,22 @@ bool ConfigServer::is_authenticated() {
     return false;
   }
 
-  unsigned long expiryTime = decrypted.substring(0, separatorPos).toInt();
-  String authStatus = decrypted.substring(separatorPos + 1);
+  String parts[3];
+  int partCount = runtime.split_string(decrypted, '|', parts, 3);
+  if (partCount < 3) {
+    return false;
+  }
+
+  unsigned long expiryTime = parts[0].toInt();
+  String authStatus = parts[1];
+  String username = parts[2];
 
   // Check if cookie is valid and not expired
   if (authStatus == "authenticated" && millis() < expiryTime) {
+    Serial.println("User " + username + " validated from cookie. [Expires: " + parts[0] + "]");
     return true;
+  } else {
+    Serial.println("User " + username + " failed validation with expired cookie.");
   }
 
   return false;
@@ -161,6 +174,13 @@ void ConfigServer::redirect_to_login() {
 }
 
 void ConfigServer::init() {
+  authSecret = runtime.get_random_string(32);
+  Serial.println("Initialized config server authentication with secret " + authSecret);
+
+  // Tell the server to collect Cookie headers
+  const char* headerKeys[] = {"Cookie"};
+  server.collectHeaders(headerKeys, 1);
+
   // Login page
   server.on("/login", HTTP_GET, [&]() {
     String html = "<!DOCTYPE html><html><head>";
@@ -201,7 +221,7 @@ void ConfigServer::init() {
 
     if (username == "admin" && password == runtime.webPassword) {
       // Create encrypted auth cookie
-      String authCookie = create_auth_cookie();
+      String authCookie = create_auth_cookie(username);
 
       // Set cookie with HttpOnly flag (as much as possible in this library)
       String cookieHeader = "auth=" + authCookie + "; Path=/; Max-Age=3600; SameSite=Strict";
@@ -209,7 +229,7 @@ void ConfigServer::init() {
       server.sendHeader("Location", "/");
       server.send(303);
 
-      Serial.println("User logged in successfully");
+      Serial.println("User " + username + " logged in successfully, set authentication cookie.");
     } else {
       // Redirect back to login with error
       server.sendHeader("Location", "/login?error=1");
@@ -254,7 +274,7 @@ void ConfigServer::init() {
     html += "<div class='status'>";
     html += "<h2>Status</h2>";
     html += "<p><strong>IP Address:</strong> " + runtime.ethernetIP + "</p>";
-    html += "<p><strong>MAC Address:</strong> " + runtime.ethernetMAC + "</p>";
+    html += "<p><strong>MAC Address:</strong> " + runtime.get_ethernet_mac_address() + "</p>";
     html += "<p><strong>Hostname:</strong> " + runtime.deviceHostname + "</p>";
     html += "<p><strong>Link Status:</strong> " + String(ETH.linkUp() ? "Up" : "Down") + "</p>";
     html += "<p><strong>SIP 1 Status:</strong> " + String(runtime.sipLine1.is_registered() ? "Registered" : "Not Registered") + "</p>";

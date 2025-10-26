@@ -3,7 +3,6 @@
 #include <ETH.h>
 #include <WebServer.h>
 #include <Preferences.h>
-#include <ESPmDNS.h>
 #include <Adafruit_NeoPixel.h>
 #include <sip.h>
 #include <runtime.h>
@@ -50,7 +49,6 @@ void WiFiEvent(WiFiEvent_t event) {
       Serial.println(ETH.gatewayIP());
 
       runtime.ethernetIP = ETH.localIP().toString();
-      runtime.ethernetMAC = ETH.macAddress();
 
       onIPAddressAssigned();
   } else if (event == ARDUINO_EVENT_ETH_LOST_IP || event == ARDUINO_EVENT_ETH_DISCONNECTED || event == ARDUINO_EVENT_ETH_STOP) {
@@ -175,8 +173,15 @@ void initEthernet() {
   Serial.println("Initializing Ethernet...");
   
   WiFi.onEvent(WiFiEvent);
+
+  uint8_t ethMac[6];
+  runtime.get_ethernet_mac(ethMac);
+  esp_iface_mac_addr_set(ethMac, ESP_MAC_ETH);
+
   ETH.begin(ETH_PHY_TYPE, ETH_PHY_ADDR, ETH_PHY_MDC, ETH_PHY_MDIO, ETH_PHY_POWER, ETH_CLK_MODE);
   ETH.setHostname(runtime.deviceHostname.c_str());
+
+  Serial.println("Ethernet is initialized with MAC " + ETH.macAddress());
 
   runtime.currentLedMode = LED_CONNECTING;
   updateLEDs();
@@ -191,19 +196,10 @@ void initEthernet() {
   
   if (ETH.linkUp()) {
     Serial.println("\nEthernet connected!");
-    runtime.ethernetMAC = ETH.macAddress();
   } else {
     Serial.println("\nEthernet connection failed!");
     delay(60000);
     ESP.restart();
-  }
-}
-
-void initMDNS() {
-  if (runtime.mDNSEnabled) {
-    MDNS.begin(runtime.deviceHostname.c_str());
-    MDNS.addService("http", "_tcp", 80);
-    MDNS.addService("visualalert", "_tcp", 80);
   }
 }
 
@@ -214,8 +210,6 @@ void setup() {
   Serial.println("SIP Alerter is starting...");
 
   runtime.init();
-  runtime.ethernetMAC = ETH.macAddress();
-  runtime.deviceHostname = "VisualAlert-" + runtime.ethernetMAC.substring(runtime.ethernetMAC.length() - 5, runtime.ethernetMAC.length() - 1);
 
   strip.begin();
   strip.setBrightness(25);
@@ -223,16 +217,17 @@ void setup() {
 
   runtime.load_configuration();
 
-  initEthernet();
+  Serial.println("System MAC Address: " + runtime.get_ethernet_mac_address());
+  Serial.println("System Hostname: " + runtime.deviceHostname);
 
-  initMDNS();
+  initEthernet();
 
   configServer.init();
 
   // Wait a bit for Ethernet to fully initialize
   delay(500);
 
-  runtime.lldp.init(runtime.deviceHostname, "ESP32 SIP");
+  runtime.lldp.init();
   
   Serial.println("Setup complete!");
 }
