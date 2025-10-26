@@ -14,14 +14,17 @@ class LLDPService {
         unsigned long lastLLDPTime = 0;
         unsigned long lldpInterval = LLDP_INTERVAL;
 
-        String hostname = "esp32";
-        String description = "ESP32 Device";
+        String &hostname;
+        String description;
 
         esp_eth_handle_t getEthHandle();
     public:
         bool enabled = true;
 
-        void init(String &hostname, String description);
+        LLDPService(String &h, String d) : hostname(h), description(d) {}
+
+        void init();
+        void update_description(String description);
         void handle();
         void send();
 };

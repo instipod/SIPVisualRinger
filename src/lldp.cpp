@@ -18,7 +18,7 @@ esp_eth_handle_t LLDPService::getEthHandle() {
   return (esp_eth_handle_t)driver;
 }
 
-void LLDPService::init(String &hostname, String description) {
+void LLDPService::init() {
     if (eth_handle == NULL) {
         eth_handle = getEthHandle();
         if (eth_handle == NULL) {
@@ -28,8 +28,9 @@ void LLDPService::init(String &hostname, String description) {
             Serial.println("Ethernet handle obtained successfully for LLDP");
         }
     }
+}
 
-    this->hostname = hostname;
+void LLDPService::update_description(String description) {
     this->description = description;
 }
 
@@ -91,7 +92,7 @@ void LLDPService::send() {
     }
 
     // TLV 2: Port ID (Type=2)
-    String portID = "Ethernet";
+    String portID = "1";
     uint8_t portIDLen = portID.length() + 1; // +1 for subtype
     lldpFrame[framePos++] = 0x04;  // Type=2, length high bits
     lldpFrame[framePos++] = portIDLen;  // Length
@@ -105,6 +106,15 @@ void LLDPService::send() {
     lldpFrame[framePos++] = 0x02;  // Length = 2 bytes
     lldpFrame[framePos++] = 0x00;  // TTL high byte (120 seconds)
     lldpFrame[framePos++] = 0x78;  // TTL low byte (120 seconds)
+
+    // TLV 4: Port Description (Type=4)
+    String portDesc = "Ethernet Port";
+    uint8_t portDescLen = portDesc.length();
+    lldpFrame[framePos++] = 0x08;  // Type=4, length high bits
+    lldpFrame[framePos++] = portDescLen;  // Length
+    for (unsigned int i = 0; i < portDesc.length(); i++) {
+        lldpFrame[framePos++] = portDesc[i];
+    }
 
     // TLV 5: System Name (Type=5)
     uint8_t hostnameLen = hostname.length();
@@ -121,6 +131,17 @@ void LLDPService::send() {
     for (unsigned int i = 0; i < description.length(); i++) {
         lldpFrame[framePos++] = description[i];
     }
+
+    // TLV 7: System Capabilities (Type=7)
+    // Length = 4 bytes (2 bytes capabilities + 2 bytes enabled)
+    lldpFrame[framePos++] = 0x0e;  // Type=7, length high bits
+    lldpFrame[framePos++] = 0x04;  // Length = 4 bytes
+    // System Capabilities (2 bytes, bit 2 = Station Only / End Device)
+    lldpFrame[framePos++] = 0x00;  // High byte
+    lldpFrame[framePos++] = 0x04;  // Low byte (bit 2 set = Station Only)
+    // Enabled Capabilities (2 bytes, bit 2 = Station Only / End Device)
+    lldpFrame[framePos++] = 0x00;  // High byte
+    lldpFrame[framePos++] = 0x04;  // Low byte (bit 2 set = Station Only)
 
     // TLV 8: Management Address (Type=8)
     IPAddress localIP = ETH.localIP();

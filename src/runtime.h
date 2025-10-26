@@ -4,9 +4,9 @@
 #include <sip.h>
 #include <configstore.h>
 #include <lldp.h>
-#include "mbedtls/ctr_drbg.h"
-#include "mbedtls/entropy.h"
+#include <ESPmDNS.h>
 #include <leds.h>
+#include "esp_mac.h"
 extern "C" {
 #include "bootloader_random.h"
 }
@@ -15,17 +15,13 @@ class Runtime {
     public:
         ConfigStore configStore;
 
-        mbedtls_entropy_context entropy;
-        mbedtls_ctr_drbg_context ctr_drbg;
-
-        String deviceHostname = "VisualAlert-ffff";
+        String deviceHostname = "VisualAlert-FFFFF";
         String ethernetIP = "0.0.0.0";
-        String ethernetMAC = "ff:ff:ff:ff:ff:ff";
 
         int currentLedMode = LED_BOOTUP;
 
         bool mDNSEnabled = true;
-        LLDPService lldp;
+        LLDPService lldp = LLDPService(deviceHostname, "ESP32 SIP Device");
 
         SIPClient sipLine1 = SIPClient(5060);
         SIPClient sipLine2 = SIPClient(5061);
@@ -38,5 +34,12 @@ class Runtime {
         void ip_begin();
         void ip_end();
         void handle();
+
+        void get_ethernet_mac(uint8_t baseMac[6]);
+        String get_ethernet_mac_address();
+
+        int get_srandom_byte();
+        String get_random_string(int length);
+        int split_string(const String& data, char separator, String result[], int maxTokens);
 };
 #endif
