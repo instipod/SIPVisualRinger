@@ -1,3 +1,5 @@
+#ifndef SIP_H
+#define SIP_H
 #include <Arduino.h>
 #include <WiFiUdp.h>
 #include <ETH.h>
@@ -9,13 +11,6 @@
 
 class SIPClient {
     private:
-        String sipServer;
-        int sipPort;
-        int localSipPort;
-        String sipUsername;
-        String sipPassword;
-        String sipRealm;
-
         bool sipRegistered;
         unsigned long lastRegisterTime;
         String currentCallID;
@@ -27,6 +22,13 @@ class SIPClient {
         WiFiUDP udpSIP;
 
     public:
+        String sipServer;
+        int sipPort;
+        int localSipPort;
+        String sipUsername;
+        String sipPassword;
+        String sipRealm;
+        
         SIPClient(int localSipPort);
         SIPClient(int localSipPort, String sipServer, int sipPort, String sipUsername, String sipPassword, String sipRealm);
 
@@ -52,3 +54,4 @@ class SIPClient {
         void handle_sip_registration();
         void handle();
 };
+#endif
