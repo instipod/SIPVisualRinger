@@ -36,7 +36,7 @@ enum LedMode {
 // Global variables
 Adafruit_NeoPixel strip(WS2811_COUNT, WS2811_PIN, NEO_GRB + NEO_KHZ800);
 Preferences preferences;
-String deviceHostname = "esp32-sip";
+String deviceHostname = "VisualAlert-ffff";
 String ethIPAddress = "";
 String ethMACAddress = "";
 esp_eth_handle_t eth_handle = NULL;
@@ -253,7 +253,7 @@ void initEthernet() {
 void loadConfiguration() {
   preferences.begin("config", false);
   
-  deviceHostname = preferences.getString("hostname", "esp32-sip");
+  deviceHostname = preferences.getString("hostname", "VisualAlert-" + ethMACAddress.substring(ethMACAddress.length() - 5, ethMACAddress.length() - 1));
   sipServer = preferences.getString("sipServer", "");
   sipPort = preferences.getInt("sipPort", 5060);
   sipUsername = preferences.getString("sipUser", "");
@@ -495,6 +495,9 @@ void initMDNS() {
 void setup() {
   Serial.begin(115200);
   delay(1000);
+
+  ethMACAddress = ETH.macAddress();
+  deviceHostname = "VisualAlert-" + ethMACAddress.substring(ethMACAddress.length() - 5, ethMACAddress.length() - 1);
 
   Serial.println("SIP Alerter is starting...");
 
