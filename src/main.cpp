@@ -71,7 +71,7 @@ void updateLEDs() {
   } else if (ETH.localIP() == IPAddress(0, 0, 0, 0)) {
     targetMode = LED_CONNECTING;
     ledFlashInterval = LED_SLOW_FLASH;
-  } else if (runtime.sipLine1.is_ringing() && runtime.currentLedMode == LED_INCOMING_CALL) {
+  } else if (runtime.sipLine1.is_registered() && runtime.sipLine1.is_ringing()) {
     targetMode = LED_INCOMING_CALL;
     ledFlashInterval = LED_FAST_FLASH;
   } else if (!runtime.sipLine1.is_registered()) {

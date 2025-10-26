@@ -376,7 +376,7 @@ void SIPClient::handle() {
 }
 
 void SIPClient::init() {
-    udpSIP.begin(sipPort);
+    udpSIP.begin(localSipPort);
 }
 
 void SIPClient::end() {
@@ -418,6 +418,4 @@ SIPClient::SIPClient(int localSipPort, String sipServer, int sipPort, String sip
     this->currentToTag = "";
     this->authAttempts = 0;
     this->lastAuthAttempt = 0;
-
-    udpSIP.begin(sipPort);
 }
