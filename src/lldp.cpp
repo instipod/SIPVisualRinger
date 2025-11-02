@@ -26,6 +26,14 @@ void LLDPService::init() {
             Serial.println("LLDP will not be available");
         } else {
             Serial.println("Ethernet handle obtained successfully for LLDP");
+
+            // Register callback to receive LLDP frames
+            esp_err_t err = esp_eth_update_input_path(eth_handle, lldpFrameReceiver, this);
+            if (err == ESP_OK) {
+                Serial.println("LLDP frame receiver registered successfully");
+            } else {
+                Serial.println("Failed to register LLDP frame receiver: " + String(err));
+            }
         }
     }
 }
@@ -173,5 +181,147 @@ void LLDPService::send() {
         Serial.println("LLDP frame sent successfully (" + String(framePos) + " bytes)");
     } else {
         Serial.println("LLDP frame send failed: " + String(err));
+    }
+}
+
+// Static callback function for receiving Ethernet frames
+esp_err_t LLDPService::lldpFrameReceiver(esp_eth_handle_t hdl, uint8_t *buffer, uint32_t len, void *priv) {
+    // Check if this is an LLDP frame (EtherType 0x88cc)
+    if (len >= 14 && buffer[12] == 0x88 && buffer[13] == 0xcc) {
+        LLDPService *service = (LLDPService *)priv;
+        service->parseLLDPFrame(buffer, len);
+    }
+
+    // Return ESP_OK to continue normal packet processing
+    return ESP_OK;
+}
+
+// Parse received LLDP frame and extract switch information
+void LLDPService::parseLLDPFrame(uint8_t *frame, uint16_t length) {
+    Serial.println("Received LLDP frame (" + String(length) + " bytes)");
+
+    // LLDP payload starts after Ethernet header (14 bytes)
+    uint16_t pos = 14;
+
+    // Temporary storage for parsed data
+    String tempHostname = "";
+    String tempPortId = "";
+    String tempPortDesc = "";
+
+    // Parse TLVs
+    while (pos < length - 2) {
+        // Read TLV header (2 bytes)
+        uint8_t typeAndLength1 = frame[pos++];
+        uint8_t typeAndLength2 = frame[pos++];
+
+        // Extract type (7 bits) and length (9 bits)
+        uint8_t tlvType = typeAndLength1 >> 1;
+        uint16_t tlvLength = ((typeAndLength1 & 0x01) << 8) | typeAndLength2;
+
+        // Check if we have enough data
+        if (pos + tlvLength > length) {
+            Serial.println("Invalid LLDP TLV length, stopping parse");
+            break;
+        }
+
+        // End of LLDPDU
+        if (tlvType == 0 && tlvLength == 0) {
+            break;
+        }
+
+        // Parse specific TLV types
+        switch (tlvType) {
+            case 1: // Chassis ID
+                Serial.print("Chassis ID: ");
+                if (tlvLength > 1) {
+                    uint8_t subtype = frame[pos];
+                    Serial.print("Subtype=" + String(subtype) + " ");
+                    // Print the value (skip subtype byte)
+                    for (uint16_t i = 1; i < tlvLength; i++) {
+                        Serial.print(String(frame[pos + i], HEX) + " ");
+                    }
+                }
+                Serial.println();
+                break;
+
+            case 2: // Port ID
+                if (tlvLength > 1) {
+                    uint8_t subtype = frame[pos];
+                    // Extract port ID string (skip subtype byte)
+                    tempPortId = "";
+                    for (uint16_t i = 1; i < tlvLength; i++) {
+                        tempPortId += (char)frame[pos + i];
+                    }
+                    Serial.println("Port ID: " + tempPortId + " (subtype=" + String(subtype) + ")");
+                }
+                break;
+
+            case 3: // TTL
+                if (tlvLength == 2) {
+                    uint16_t ttl = (frame[pos] << 8) | frame[pos + 1];
+                    Serial.println("TTL: " + String(ttl) + " seconds");
+                }
+                break;
+
+            case 4: // Port Description
+                tempPortDesc = "";
+                for (uint16_t i = 0; i < tlvLength; i++) {
+                    tempPortDesc += (char)frame[pos + i];
+                }
+                Serial.println("Port Description: " + tempPortDesc);
+                break;
+
+            case 5: // System Name (this is the switch hostname!)
+                tempHostname = "";
+                for (uint16_t i = 0; i < tlvLength; i++) {
+                    tempHostname += (char)frame[pos + i];
+                }
+                Serial.println("System Name (Switch Hostname): " + tempHostname);
+                break;
+
+            case 6: // System Description
+                {
+                    String sysDesc = "";
+                    for (uint16_t i = 0; i < tlvLength; i++) {
+                        sysDesc += (char)frame[pos + i];
+                    }
+                    Serial.println("System Description: " + sysDesc);
+                }
+                break;
+
+            case 7: // System Capabilities
+                if (tlvLength == 4) {
+                    uint16_t capabilities = (frame[pos] << 8) | frame[pos + 1];
+                    uint16_t enabled = (frame[pos + 2] << 8) | frame[pos + 3];
+                    Serial.println("Capabilities: 0x" + String(capabilities, HEX) + " Enabled: 0x" + String(enabled, HEX));
+                }
+                break;
+
+            case 8: // Management Address
+                Serial.println("Management Address TLV received");
+                break;
+
+            default:
+                Serial.println("Unknown TLV Type: " + String(tlvType) + " Length: " + String(tlvLength));
+                break;
+        }
+
+        // Move to next TLV
+        pos += tlvLength;
+    }
+
+    // Update stored values if we got a hostname
+    if (tempHostname.length() > 0) {
+        switchHostname = tempHostname;
+        switchPortId = tempPortId;
+        switchPortDesc = tempPortDesc;
+        lastLLDPReceived = millis();
+        lldpDataValid = true;
+
+        Serial.println("=== LLDP Data Updated ===");
+        Serial.println("Switch Hostname: " + switchHostname);
+        Serial.println("Switch Port ID: " + switchPortId);
+        Serial.println("Switch Port Desc: " + switchPortDesc);
+        Serial.println("========================");
     }
 }
