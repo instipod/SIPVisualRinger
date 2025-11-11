@@ -239,7 +239,7 @@ void setup() {
   digitalWrite(RELAY1, LOW);
   digitalWrite(RELAY2, LOW);
   strip.begin();
-  strip.setBrightness(100);
+  strip.setBrightness(250);
   updateLEDs();
 
   runtime.load_configuration();
