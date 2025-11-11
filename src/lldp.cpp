@@ -277,16 +277,6 @@ void LLDPService::parseLLDPFrame(uint8_t *frame, uint16_t length) {
         // Parse specific TLV types
         switch (tlvType) {
             case 1: // Chassis ID
-                Serial.print("Chassis ID: ");
-                if (tlvLength > 1) {
-                    uint8_t subtype = frame[pos];
-                    Serial.print("Subtype=" + String(subtype) + " ");
-                    // Print the value (skip subtype byte)
-                    for (uint16_t i = 1; i < tlvLength; i++) {
-                        Serial.print(String(frame[pos + i], HEX) + " ");
-                    }
-                }
-                Serial.println();
                 break;
 
             case 2: // Port ID
@@ -297,14 +287,12 @@ void LLDPService::parseLLDPFrame(uint8_t *frame, uint16_t length) {
                     for (uint16_t i = 1; i < tlvLength; i++) {
                         tempPortId += (char)frame[pos + i];
                     }
-                    Serial.println("Port ID: " + tempPortId + " (subtype=" + String(subtype) + ")");
                 }
                 break;
 
             case 3: // TTL
                 if (tlvLength == 2) {
                     uint16_t ttl = (frame[pos] << 8) | frame[pos + 1];
-                    Serial.println("TTL: " + String(ttl) + " seconds");
                 }
                 break;
 
@@ -313,7 +301,6 @@ void LLDPService::parseLLDPFrame(uint8_t *frame, uint16_t length) {
                 for (uint16_t i = 0; i < tlvLength; i++) {
                     tempPortDesc += (char)frame[pos + i];
                 }
-                Serial.println("Port Description: " + tempPortDesc);
                 break;
 
             case 5: // System Name (this is the switch hostname!)
@@ -321,7 +308,6 @@ void LLDPService::parseLLDPFrame(uint8_t *frame, uint16_t length) {
                 for (uint16_t i = 0; i < tlvLength; i++) {
                     tempHostname += (char)frame[pos + i];
                 }
-                Serial.println("System Name (Switch Hostname): " + tempHostname);
                 break;
 
             case 6: // System Description
@@ -330,7 +316,6 @@ void LLDPService::parseLLDPFrame(uint8_t *frame, uint16_t length) {
                     for (uint16_t i = 0; i < tlvLength; i++) {
                         sysDesc += (char)frame[pos + i];
                     }
-                    Serial.println("System Description: " + sysDesc);
                 }
                 break;
 
@@ -338,7 +323,6 @@ void LLDPService::parseLLDPFrame(uint8_t *frame, uint16_t length) {
                 if (tlvLength == 4) {
                     uint16_t capabilities = (frame[pos] << 8) | frame[pos + 1];
                     uint16_t enabled = (frame[pos + 2] << 8) | frame[pos + 3];
-                    Serial.println("Capabilities: 0x" + String(capabilities, HEX) + " Enabled: 0x" + String(enabled, HEX));
                 }
                 break;
 
@@ -362,10 +346,9 @@ void LLDPService::parseLLDPFrame(uint8_t *frame, uint16_t length) {
         lastLLDPReceived = millis();
         lldpDataValid = true;
 
-        Serial.println("=== LLDP Data Updated ===");
-        Serial.println("Switch Hostname: " + switchHostname);
-        Serial.println("Switch Port ID: " + switchPortId);
-        Serial.println("Switch Port Desc: " + switchPortDesc);
-        Serial.println("========================");
+        Serial.print("Received LLDP neighbor info: hostname=");
+        Serial.print(switchHostname);
+        Serial.print(", port=");
+        Serial.println(switchPortId);
     }
 }
