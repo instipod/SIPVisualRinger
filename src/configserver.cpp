@@ -356,6 +356,8 @@ void ConfigServer::init() {
 
   server.begin();
   Serial.println("Web server started on port 80");
+  Serial.print("Server should be accessible at: http://");
+  Serial.println(ETH.localIP());
 }
 
 void ConfigServer::handle() {

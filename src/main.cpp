@@ -8,16 +8,35 @@
 #include <runtime.h>
 #include <leds.h>
 #include <configserver.h>
+#ifndef ETH_LAN8720
+#include <SPI.h>
+#endif
 
 // Build configuration
-#define WS2811_PIN 12
-#define WS2811_COUNT 3
+#define WS2811_PIN 2
+#define WS2811_COUNT 10
+
+// Ethernet configuration
+#ifdef ETH_LAN8720
 #define ETH_PHY_ADDR 1
 #define ETH_PHY_MDC 23
 #define ETH_PHY_MDIO 18
 #define ETH_PHY_POWER 16
 #define ETH_CLK_MODE ETH_CLOCK_GPIO0_IN
 #define ETH_PHY_TYPE ETH_PHY_LAN8720
+#else
+#define ETH_SPI_SCK 13
+#define ETH_SPI_MISO 12
+#define ETH_SPI_MOSI 11
+#define ETH_PHY_CS 14
+#define ETH_PHY_IRQ 10
+#define ETH_PHY_RST 9
+#define ETH_PHY_ADDR 1
+#define ETH_PHY_TYPE ETH_PHY_W5500
+#endif
+
+#define RELAY1 6
+#define RELAY2 5
 
 // Global variables
 Adafruit_NeoPixel strip(WS2811_COUNT, WS2811_PIN, NEO_GRB + NEO_KHZ800);
@@ -31,6 +50,8 @@ unsigned long ledFlashInterval = LED_FAST_FLASH;
 
 void onIPAddressAssigned() {
   runtime.currentLedMode = LED_IDLE;
+
+  configServer.init();
 
   runtime.ip_begin();
 }
@@ -93,9 +114,9 @@ void updateLEDs() {
   switch (runtime.currentLedMode) {
     case LED_BOOTUP:
       // Solid red on all LEDs
-      strip.setPixelColor(0, strip.Color(255, 0, 0)); // Red
-      strip.setPixelColor(1, strip.Color(255, 0, 0)); // Red
-      strip.setPixelColor(2, strip.Color(255, 0, 0)); // Red
+      for (int i = 0; i < WS2811_COUNT; i++) {
+        strip.setPixelColor(i, strip.Color(255, 0, 0)); // Red
+      }
       strip.show();
       break;
 
@@ -105,14 +126,14 @@ void updateLEDs() {
         ledState = !ledState;
         if (ledState) {
           // Blue
-          strip.setPixelColor(0, strip.Color(0, 0, 255));
-          strip.setPixelColor(1, strip.Color(0, 0, 255));
-          strip.setPixelColor(2, strip.Color(0, 0, 255));
+          for (int i = 0; i < WS2811_COUNT; i++) {
+            strip.setPixelColor(i, strip.Color(0, 0, 255)); // Blue
+          }
         } else {
           // Off
-          strip.setPixelColor(0, strip.Color(0, 0, 0));
-          strip.setPixelColor(1, strip.Color(0, 0, 0));
-          strip.setPixelColor(2, strip.Color(0, 0, 0));
+          for (int i = 0; i < WS2811_COUNT; i++) {
+            strip.setPixelColor(i, strip.Color(0, 0, 0)); // Off
+          }
         }
         strip.show();
         lastLedToggle = millis();
@@ -120,11 +141,17 @@ void updateLEDs() {
       break;
 
     case LED_IDLE:
-      // Solid green on first LED only
-      strip.setPixelColor(0, strip.Color(0, 255, 0)); // Green
-      strip.setPixelColor(1, strip.Color(0, 0, 0));   // Off
-      strip.setPixelColor(2, strip.Color(0, 0, 0));   // Off
+      // Solid green on alternating LEDs only
+      for (int i = 0; i < WS2811_COUNT; i++) {
+        strip.setPixelColor(i, strip.Color(0, 0, 0)); // Off
+      }
+      strip.setPixelColor(0, strip.Color(0, 128, 0)); // Green
+      strip.setPixelColor(2, strip.Color(0, 128, 0)); // Green
+      strip.setPixelColor(4, strip.Color(0, 128, 0)); // Green
+      strip.setPixelColor(6, strip.Color(0, 128, 0)); // Green
+      strip.setPixelColor(8, strip.Color(0, 128, 0)); // Green
       strip.show();
+      digitalWrite(RELAY1, LOW);
       break;
       
     case LED_INCOMING_CALL:
@@ -133,14 +160,16 @@ void updateLEDs() {
         ledState = !ledState;
         if (ledState) {
           // Red
-          strip.setPixelColor(0, strip.Color(255, 0, 0));
-          strip.setPixelColor(1, strip.Color(255, 0, 0));
-          strip.setPixelColor(2, strip.Color(255, 0, 0));
+          for (int i = 0; i < WS2811_COUNT; i++) {
+            strip.setPixelColor(i, strip.Color(255, 0, 0)); // Red
+          }
+          digitalWrite(RELAY1, HIGH);
         } else {
           // Orange
-          strip.setPixelColor(0, strip.Color(255, 165, 0));
-          strip.setPixelColor(1, strip.Color(255, 165, 0));
-          strip.setPixelColor(2, strip.Color(255, 165, 0));
+          for (int i = 0; i < WS2811_COUNT; i++) {
+            strip.setPixelColor(i, strip.Color(255, 165, 0)); // Orange
+          }
+          digitalWrite(RELAY1, LOW);
         }
         strip.show();
         lastLedToggle = millis();
@@ -153,14 +182,14 @@ void updateLEDs() {
         ledState = !ledState;
         if (ledState) {
           // Red
-          strip.setPixelColor(0, strip.Color(255, 0, 0));
-          strip.setPixelColor(1, strip.Color(255, 0, 0));
-          strip.setPixelColor(2, strip.Color(255, 0, 0));
+          for (int i = 0; i < WS2811_COUNT; i++) {
+            strip.setPixelColor(i, strip.Color(255, 0, 0)); // Red
+          }
         } else {
           // Off
-          strip.setPixelColor(0, strip.Color(0, 0, 0));
-          strip.setPixelColor(1, strip.Color(0, 0, 0));
-          strip.setPixelColor(2, strip.Color(0, 0, 0));
+          for (int i = 0; i < WS2811_COUNT; i++) {
+            strip.setPixelColor(i, strip.Color(0, 0, 0)); // Off
+          }
         }
         strip.show();
         lastLedToggle = millis();
@@ -176,9 +205,17 @@ void initEthernet() {
 
   uint8_t ethMac[6];
   runtime.get_ethernet_mac(ethMac);
-  esp_iface_mac_addr_set(ethMac, ESP_MAC_ETH);
+  esp_iface_mac_addr_set(ethMac, ESP_MAC_BASE);
 
+  #ifdef ETH_LAN8720
+  Serial.println("Initializing LAN8720 PHY...");
   ETH.begin(ETH_PHY_TYPE, ETH_PHY_ADDR, ETH_PHY_MDC, ETH_PHY_MDIO, ETH_PHY_POWER, ETH_CLK_MODE);
+  #else
+  Serial.println("Initializing SPI...");
+  SPI.begin(ETH_SPI_SCK, ETH_SPI_MISO, ETH_SPI_MOSI);
+  Serial.println("Initializing W5500 PHY...");
+  ETH.begin(ETH_PHY_TYPE, ETH_PHY_ADDR, ETH_PHY_CS, ETH_PHY_IRQ, ETH_PHY_RST, SPI);
+  #endif
   ETH.setHostname(runtime.deviceHostname.c_str());
 
   Serial.println("Ethernet is initialized with MAC " + ETH.macAddress());
@@ -211,8 +248,12 @@ void setup() {
 
   runtime.init();
 
+  pinMode(RELAY1, OUTPUT);
+  pinMode(RELAY2, OUTPUT);
+  digitalWrite(RELAY1, LOW);
+  digitalWrite(RELAY2, LOW);
   strip.begin();
-  strip.setBrightness(25);
+  strip.setBrightness(100);
   updateLEDs();
 
   runtime.load_configuration();
@@ -222,13 +263,14 @@ void setup() {
 
   initEthernet();
 
-  configServer.init();
-
   // Wait a bit for Ethernet to fully initialize
   delay(500);
 
+  // Note: configServer.init() is now called in onIPAddressAssigned()
+  // after the ESP32 receives an IP address from DHCP
+
   runtime.lldp.init();
-  
+
   Serial.println("Setup complete!");
 }
 

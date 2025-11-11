@@ -11,6 +11,7 @@
 class LLDPService {
     private:
         esp_eth_handle_t eth_handle = NULL;
+        esp_netif_t *netif = NULL;
         unsigned long lastLLDPTime = 0;
         unsigned long lldpInterval = LLDP_INTERVAL;
 

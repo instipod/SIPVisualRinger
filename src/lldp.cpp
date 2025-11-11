@@ -6,14 +6,17 @@ esp_eth_handle_t LLDPService::getEthHandle() {
     Serial.println("Could not get netif handle");
     return NULL;
   }
-  
+
+  // Store netif for later use in packet forwarding
+  this->netif = netif;
+
   // Get the IO driver (returns void* which is the esp_eth_handle_t)
   void *driver = esp_netif_get_io_driver(netif);
   if (driver == NULL) {
     Serial.println("Could not get IO driver");
     return NULL;
   }
-  
+
   // The driver is the esp_eth_handle_t
   return (esp_eth_handle_t)driver;
 }
@@ -186,13 +189,25 @@ void LLDPService::send() {
 
 // Static callback function for receiving Ethernet frames
 esp_err_t LLDPService::lldpFrameReceiver(esp_eth_handle_t hdl, uint8_t *buffer, uint32_t len, void *priv) {
+    LLDPService *service = (LLDPService *)priv;
+
     // Check if this is an LLDP frame (EtherType 0x88cc)
     if (len >= 14 && buffer[12] == 0x88 && buffer[13] == 0xcc) {
-        LLDPService *service = (LLDPService *)priv;
         service->parseLLDPFrame(buffer, len);
+        // Don't forward LLDP frames to the network stack
+        return ESP_OK;
     }
 
-    // Return ESP_OK to continue normal packet processing
+    // Forward all non-LLDP packets to the network stack
+    // This is critical because esp_eth_update_input_path replaces the default handler
+    if (service->netif != NULL) {
+        esp_err_t ret = esp_netif_receive(service->netif, buffer, len, NULL);
+        if (ret != ESP_OK) {
+            Serial.println("Failed to forward packet to netif: " + String(ret));
+        }
+        return ret;
+    }
+
     return ESP_OK;
 }
 
