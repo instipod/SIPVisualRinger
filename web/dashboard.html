@@ -14,15 +14,6 @@
         class="absolute inset-x-0 top-0 z-50 flex h-16 border-b border-gray-900/10 dark:border-white/10 dark:bg-black/10">
         <div class="mx-auto flex w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
             <div class="flex flex-1 items-center gap-x-6">
-                <button type="button" command="show-modal" commandfor="mobile-menu" class="-m-3 p-3 md:hidden">
-                    <span class="sr-only">Open main menu</span>
-                    <svg viewBox="0 0 20 20" fill="currentColor" data-slot="icon" aria-hidden="true"
-                        class="size-5 text-gray-900 dark:text-white">
-                        <path
-                            d="M2 4.75A.75.75 0 0 1 2.75 4h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 4.75ZM2 10a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 10Zm0 5.25a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75Z"
-                            clip-rule="evenodd" fill-rule="evenodd" />
-                    </svg>
-                </button>
                 <svg class="h-8 w-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><!--!Font Awesome Pro 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2025 Fonticons, Inc.--><path opacity=".4" d="M132.4 416L207 416L231.9 192L280.2 192L279.9 194.7L255.3 416L507.7 416L464.1 96L176.1 96L132.5 416z"/><path d="M69.3 100L49.3 86.7L22.7 126.6C31.3 132.4 54 147.5 90.7 171.9L110.7 185.2L137.3 145.3L69.3 100zM597.3 140L617.3 126.7L590.7 86.8C582.1 92.6 559.4 107.7 522.7 132.1L502.7 145.4L529.3 185.3C537.9 179.5 560.6 164.4 597.3 140zM24 256L0 256L0 304L112 304L112 256L24 256zM552 256L528 256L528 304L640 304L640 256L552 256zM544 416L96 416L96 544L544 544L544 416z"/></svg>
             </div>
             <nav class="hidden md:flex md:gap-x-11 md:text-sm/6 md:font-semibold md:text-gray-700 dark:md:text-gray-300">
@@ -107,7 +98,21 @@
                                 class="mt-6 divide-y divide-gray-100 border-t border-gray-200 text-sm/6 dark:divide-white/5 dark:border-white/5">
                                 <li class="flex justify-between gap-x-6 py-6">
                                     <div class="font-medium text-gray-900 dark:text-white">LED Ring</div>
-                                    <div class="grid grid-cols-4 space-x-1 items-center">
+                                    <div class="grid grid-cols-4 space-x-1 items-center hidden" id="led-pattern1">
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-red-500 dark:fill-red-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-red-500 dark:fill-green-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-red-500 dark:fill-red-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-red-500 dark:fill-red-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                    </div>
+                                    <div class="grid grid-cols-4 space-x-1 items-center hidden" id="led-pattern2">
                                         <svg viewBox="0 0 40 40" class="w-3 h-3 fill-green-500 dark:fill-green-400">
                                             <circle r="20" cx="20" cy="20" />
                                         </svg>
@@ -118,6 +123,62 @@
                                             <circle r="20" cx="20" cy="20" />
                                         </svg>
                                         <svg viewBox="0 0 40 40" class="w-3 h-3 fill-green-500 dark:fill-green-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                    </div>
+                                    <div class="grid grid-cols-4 space-x-1 items-center hidden" id="led-pattern3">
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-blue-500 dark:fill-blue-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-blue-500 dark:fill-blue-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-blue-500 dark:fill-blue-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-blue-500 dark:fill-blue-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                    </div>
+                                    <div class="grid grid-cols-4 space-x-1 items-center animate-pulse hidden" id="led-pattern4">
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-red-500 dark:fill-red-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-red-500 dark:fill-red-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-red-500 dark:fill-red-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-red-500 dark:fill-red-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                    </div>
+                                    <div class="grid grid-cols-4 space-x-1 items-center animate-pulse hidden" id="led-pattern5">
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-green-500 dark:fill-green-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-green-500 dark:fill-green-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-green-500 dark:fill-green-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-green-500 dark:fill-green-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                    </div>
+                                    <div class="grid grid-cols-4 space-x-1 items-center animate-pulse hidden" id="led-pattern6">
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-blue-500 dark:fill-blue-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-blue-500 dark:fill-blue-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-blue-500 dark:fill-blue-400">
+                                            <circle r="20" cx="20" cy="20" />
+                                        </svg>
+                                        <svg viewBox="0 0 40 40" class="w-3 h-3 fill-blue-500 dark:fill-blue-400">
                                             <circle r="20" cx="20" cy="20" />
                                         </svg>
                                     </div>
@@ -279,6 +340,8 @@
                     }
                 });
             });
+
+            document.getElementById('led-pattern{LED_PATTERN}').classList.remove("hidden");
         });
     </script>
 </body>

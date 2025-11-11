@@ -255,6 +255,7 @@ void ConfigServer::init() {
     html.replace("{SIP_PORT_2}", String(runtime.sipLine2.sipPort));
     html.replace("{SIP_USERNAME_2}", runtime.sipLine2.sipUsername);
     html.replace("{SIP_PASSWORD_2}", runtime.sipLine2.sipPassword);
+    html.replace("{LED_PATTERN}", String(runtime.ledManager.runningPattern));
 
     server.send(200, "text/html", html);
   });

@@ -23,15 +23,16 @@ enum LedPattern {
 };
 
 class LedManager {
-    private:
-        Adafruit_NeoPixel strip; //(WS2811_COUNT, WS2811_PIN, NEO_GRB + NEO_KHZ800);
-        int runningPattern = PATTERN1;
-        long lastTick = 0;
-        int ledStage = 0;
-    public:
-        LedManager();
-        void setPattern(int pattern);
-        void init();
-        void handle();
+  private:
+    Adafruit_NeoPixel strip; //(WS2811_COUNT, WS2811_PIN, NEO_GRB + NEO_KHZ800);
+    long lastTick = 0;
+    int ledStage = 0;
+  public:
+    int runningPattern = PATTERN1;
+
+    LedManager();
+    void setPattern(int pattern);
+    void init();
+    void handle();
 };
 #endif
