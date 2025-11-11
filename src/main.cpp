@@ -8,23 +8,13 @@
 #include <runtime.h>
 #include <leds.h>
 #include <configserver.h>
-#ifndef ETH_LAN8720
 #include <SPI.h>
-#endif
 
 // Build configuration
 #define WS2811_PIN 2
 #define WS2811_COUNT 10
 
 // Ethernet configuration
-#ifdef ETH_LAN8720
-#define ETH_PHY_ADDR 1
-#define ETH_PHY_MDC 23
-#define ETH_PHY_MDIO 18
-#define ETH_PHY_POWER 16
-#define ETH_CLK_MODE ETH_CLOCK_GPIO0_IN
-#define ETH_PHY_TYPE ETH_PHY_LAN8720
-#else
 #define ETH_SPI_SCK 13
 #define ETH_SPI_MISO 12
 #define ETH_SPI_MOSI 11
@@ -33,8 +23,8 @@
 #define ETH_PHY_RST 9
 #define ETH_PHY_ADDR 1
 #define ETH_PHY_TYPE ETH_PHY_W5500
-#endif
 
+// Relay configuration
 #define RELAY1 6
 #define RELAY2 5
 
@@ -207,15 +197,11 @@ void initEthernet() {
   runtime.get_ethernet_mac(ethMac);
   esp_iface_mac_addr_set(ethMac, ESP_MAC_BASE);
 
-  #ifdef ETH_LAN8720
-  Serial.println("Initializing LAN8720 PHY...");
-  ETH.begin(ETH_PHY_TYPE, ETH_PHY_ADDR, ETH_PHY_MDC, ETH_PHY_MDIO, ETH_PHY_POWER, ETH_CLK_MODE);
-  #else
   Serial.println("Initializing SPI...");
   SPI.begin(ETH_SPI_SCK, ETH_SPI_MISO, ETH_SPI_MOSI);
   Serial.println("Initializing W5500 PHY...");
   ETH.begin(ETH_PHY_TYPE, ETH_PHY_ADDR, ETH_PHY_CS, ETH_PHY_IRQ, ETH_PHY_RST, SPI);
-  #endif
+
   ETH.setHostname(runtime.deviceHostname.c_str());
 
   Serial.println("Ethernet is initialized with MAC " + ETH.macAddress());
