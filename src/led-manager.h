@@ -10,16 +10,29 @@
 #define WS2811_COUNT 10
 
 enum LedPattern {
-  PATTERN1, //Dark
-  PATTERN2, //Red Solid
-  PATTERN3, //Green Solid
-  PATTERN4, //Blue Solid
-  PATTERN5, //Red Flash
-  PATTERN6, //Green Flash
-  PATTERN7, // Blue Flash
-  PATTERN8, //Red/Green Flash
-  PATTERN9, //Red/Blue Flash
-  PATTERN10 //Green/Blue Flash
+  OFF, //Dark
+  RED_SOLID, //Red Solid
+  GREEN_SOLID, //Green Solid
+  BLUE_SOLID, //Blue Solid
+  YELLOW_SOLID, //Yellow Solid
+  PURPLE_SOLID, //Purple Solid
+  RED_FLASH, //Red Flash
+  GREEN_FLASH, //Green Flash
+  BLUE_FLASH, //Blue Flash
+  YELLOW_FLASH, //Yellow Flash
+  PURPLE_FLASH, //Purple Flash
+  RED_GREEN_FLASH, //Red/Green Flash
+  RED_BLUE_FLASH, //Red/Blue Flash
+  RED_YELLOW_FLASH, //Red/Yellow Flash
+  RED_PURPLE_FLASH, //Red/Purple Flash
+  GREEN_BLUE_FLASH, //Green/Blue Flash
+  GREEN_YELLOW_FLASH, //Green/Yellow Flash
+  GREEN_PURPLE_FLASH, //Green/Purple Flash
+  RED_CHASE, //Red Chase
+  GREEN_CHASE, //Green Chase
+  BLUE_CHASE, //Blue Chase
+  YELLOW_CHASE, //Yellow Chase
+  PURPLE_CHASE //Purple Chase
 };
 
 class LedManager {
@@ -28,7 +41,7 @@ class LedManager {
     long lastTick = 0;
     int ledStage = 0;
   public:
-    int runningPattern = PATTERN1;
+    int runningPattern = OFF;
 
     LedManager();
     void setPattern(int pattern);

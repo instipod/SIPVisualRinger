@@ -23,7 +23,7 @@ void LedManager::init() {
 
 void LedManager::handle() {
     switch (runningPattern) {
-        case PATTERN1:
+        case OFF:
             if (millis() - lastTick > 1000) {
                 for (int i = 0; i < WS2811_COUNT; i++) {
                     strip.setPixelColor(i, strip.Color(0, 0, 0)); // Off
@@ -31,7 +31,7 @@ void LedManager::handle() {
                 lastTick = millis();
             }
             break;
-        case PATTERN2:
+        case RED_SOLID:
             if (millis() - lastTick > 1000) {
                 for (int i = 0; i < WS2811_COUNT; i++) {
                     strip.setPixelColor(i, strip.Color(255, 0, 0)); // Red
@@ -39,7 +39,7 @@ void LedManager::handle() {
                 lastTick = millis();
             }
             break;
-        case PATTERN3:
+        case GREEN_SOLID:
             if (millis() - lastTick > 1000) {
                 for (int i = 0; i < WS2811_COUNT; i++) {
                     strip.setPixelColor(i, strip.Color(0, 255, 0)); // Green
@@ -47,7 +47,7 @@ void LedManager::handle() {
                 lastTick = millis();
             }
             break;
-        case PATTERN4:
+        case BLUE_SOLID:
             if (millis() - lastTick > 1000) {
                 for (int i = 0; i < WS2811_COUNT; i++) {
                     strip.setPixelColor(i, strip.Color(0, 0, 255)); // Blue
@@ -55,7 +55,23 @@ void LedManager::handle() {
                 lastTick = millis();
             }
             break;
-        case PATTERN5:
+        case YELLOW_SOLID:
+            if (millis() - lastTick > 1000) {
+                for (int i = 0; i < WS2811_COUNT; i++) {
+                    strip.setPixelColor(i, strip.Color(255, 255, 0)); // Yellow
+                }
+                lastTick = millis();
+            }
+            break;
+        case PURPLE_SOLID:
+            if (millis() - lastTick > 1000) {
+                for (int i = 0; i < WS2811_COUNT; i++) {
+                    strip.setPixelColor(i, strip.Color(0, 255, 255)); // Purple
+                }
+                lastTick = millis();
+            }
+            break;
+        case RED_FLASH:
             if (millis() - lastTick > 250) {
                 for (int i = 0; i < WS2811_COUNT; i++) {
                     strip.setPixelColor(i, strip.Color((255 * ledStage), 0, 0)); // Red or Off
@@ -68,7 +84,7 @@ void LedManager::handle() {
                 lastTick = millis();
             }
             break;
-        case PATTERN6:
+        case GREEN_FLASH:
             if (millis() - lastTick > 250) {
                 for (int i = 0; i < WS2811_COUNT; i++) {
                     strip.setPixelColor(i, strip.Color(0, (255 * ledStage), 0)); // Green or Off
@@ -81,7 +97,7 @@ void LedManager::handle() {
                 lastTick = millis();
             }
             break;
-        case PATTERN7:
+        case BLUE_FLASH:
             if (millis() - lastTick > 250) {
                 for (int i = 0; i < WS2811_COUNT; i++) {
                     strip.setPixelColor(i, strip.Color(0, 0, (255 * ledStage))); // Blue or Off
@@ -94,7 +110,33 @@ void LedManager::handle() {
                 lastTick = millis();
             }
             break;
-        case PATTERN8:
+        case YELLOW_FLASH:
+            if (millis() - lastTick > 250) {
+                for (int i = 0; i < WS2811_COUNT; i++) {
+                    strip.setPixelColor(i, strip.Color((255 * ledStage), (255 * ledStage), 0)); // Yellow or Off
+                }
+                if (ledStage == 0) {
+                    ledStage = 1;
+                } else {
+                    ledStage = 0;
+                }
+                lastTick = millis();
+            }
+            break;
+        case PURPLE_FLASH:
+            if (millis() - lastTick > 250) {
+                for (int i = 0; i < WS2811_COUNT; i++) {
+                    strip.setPixelColor(i, strip.Color(0, (255 * ledStage), (255 * ledStage))); // Purple or Off
+                }
+                if (ledStage == 0) {
+                    ledStage = 1;
+                } else {
+                    ledStage = 0;
+                }
+                lastTick = millis();
+            }
+            break;
+        case RED_GREEN_FLASH:
             if (millis() - lastTick > 250) {
                 if (ledStage == 0) {
                     for (int i = 0; i < WS2811_COUNT; i++) {
@@ -110,7 +152,7 @@ void LedManager::handle() {
                 lastTick = millis();
             }
             break;
-        case PATTERN9:
+        case RED_BLUE_FLASH:
             if (millis() - lastTick > 250) {
                 if (ledStage == 0) {
                     for (int i = 0; i < WS2811_COUNT; i++) {
@@ -119,24 +161,178 @@ void LedManager::handle() {
                     ledStage = 1;
                 } else {
                     for (int i = 0; i < WS2811_COUNT; i++) {
-                        strip.setPixelColor(i, strip.Color(0, 0, 255)); // Green
+                        strip.setPixelColor(i, strip.Color(0, 0, 255)); // Blue
                     }
                     ledStage = 0;
                 }
                 lastTick = millis();
             }
             break;
-        case PATTERN10:
+        case RED_YELLOW_FLASH:
             if (millis() - lastTick > 250) {
                 if (ledStage == 0) {
                     for (int i = 0; i < WS2811_COUNT; i++) {
-                        strip.setPixelColor(i, strip.Color(0, 255, 0)); // Red
+                        strip.setPixelColor(i, strip.Color(255, 0, 0)); // Red
                     }
                     ledStage = 1;
                 } else {
                     for (int i = 0; i < WS2811_COUNT; i++) {
-                        strip.setPixelColor(i, strip.Color(0, 0, 255)); // Green
+                        strip.setPixelColor(i, strip.Color(255, 255, 0)); // Yellow
                     }
+                    ledStage = 0;
+                }
+                lastTick = millis();
+            }
+            break;
+        case RED_PURPLE_FLASH:
+            if (millis() - lastTick > 250) {
+                if (ledStage == 0) {
+                    for (int i = 0; i < WS2811_COUNT; i++) {
+                        strip.setPixelColor(i, strip.Color(255, 0, 0)); // Red
+                    }
+                    ledStage = 1;
+                } else {
+                    for (int i = 0; i < WS2811_COUNT; i++) {
+                        strip.setPixelColor(i, strip.Color(0, 255, 255)); // Purple
+                    }
+                    ledStage = 0;
+                }
+                lastTick = millis();
+            }
+            break;
+        case GREEN_BLUE_FLASH:
+            if (millis() - lastTick > 250) {
+                if (ledStage == 0) {
+                    for (int i = 0; i < WS2811_COUNT; i++) {
+                        strip.setPixelColor(i, strip.Color(0, 255, 0)); // Green
+                    }
+                    ledStage = 1;
+                } else {
+                    for (int i = 0; i < WS2811_COUNT; i++) {
+                        strip.setPixelColor(i, strip.Color(0, 0, 255)); // Blue
+                    }
+                    ledStage = 0;
+                }
+                lastTick = millis();
+            }
+            break;
+        case GREEN_YELLOW_FLASH:
+            if (millis() - lastTick > 250) {
+                if (ledStage == 0) {
+                    for (int i = 0; i < WS2811_COUNT; i++) {
+                        strip.setPixelColor(i, strip.Color(0, 255, 0)); // Green
+                    }
+                    ledStage = 1;
+                } else {
+                    for (int i = 0; i < WS2811_COUNT; i++) {
+                        strip.setPixelColor(i, strip.Color(255, 255, 0)); // Yellow
+                    }
+                    ledStage = 0;
+                }
+                lastTick = millis();
+            }
+            break;
+        case GREEN_PURPLE_FLASH:
+            if (millis() - lastTick > 250) {
+                if (ledStage == 0) {
+                    for (int i = 0; i < WS2811_COUNT; i++) {
+                        strip.setPixelColor(i, strip.Color(0, 255, 0)); // Green
+                    }
+                    ledStage = 1;
+                } else {
+                    for (int i = 0; i < WS2811_COUNT; i++) {
+                        strip.setPixelColor(i, strip.Color(0, 255, 255)); // Purple
+                    }
+                    ledStage = 0;
+                }
+                lastTick = millis();
+            }
+            break;
+        case RED_CHASE:
+            if (millis() - lastTick > 100) {
+                for (int i = 0; i < WS2811_COUNT; i++) {
+                    strip.setPixelColor(i, strip.Color(0, 0, 0)); // Off
+                }
+                strip.setPixelColor(ledStage, strip.Color(255, 0, 0));
+                if (ledStage != WS2811_COUNT) {
+                    strip.setPixelColor(ledStage + 1, strip.Color(255, 0, 0));
+                } else {
+                    strip.setPixelColor(0, strip.Color(255, 0, 0));
+                }
+                ledStage += 1;
+                if (ledStage > WS2811_COUNT) {
+                    ledStage = 0;
+                }
+                lastTick = millis();
+            }
+            break;
+        case GREEN_CHASE:
+            if (millis() - lastTick > 100) {
+                for (int i = 0; i < WS2811_COUNT; i++) {
+                    strip.setPixelColor(i, strip.Color(0, 0, 0)); // Off
+                }
+                strip.setPixelColor(ledStage, strip.Color(255, 0, 0));
+                if (ledStage != WS2811_COUNT) {
+                    strip.setPixelColor(ledStage + 1, strip.Color(0, 255, 0));
+                } else {
+                    strip.setPixelColor(0, strip.Color(0, 255, 0));
+                }
+                ledStage += 1;
+                if (ledStage > WS2811_COUNT) {
+                    ledStage = 0;
+                }
+                lastTick = millis();
+            }
+            break;
+        case BLUE_CHASE:
+            if (millis() - lastTick > 100) {
+                for (int i = 0; i < WS2811_COUNT; i++) {
+                    strip.setPixelColor(i, strip.Color(0, 0, 0)); // Off
+                }
+                strip.setPixelColor(ledStage, strip.Color(0, 0, 255));
+                if (ledStage != WS2811_COUNT) {
+                    strip.setPixelColor(ledStage + 1, strip.Color(0, 0, 255));
+                } else {
+                    strip.setPixelColor(0, strip.Color(0, 0, 255));
+                }
+                ledStage += 1;
+                if (ledStage > WS2811_COUNT) {
+                    ledStage = 0;
+                }
+                lastTick = millis();
+            }
+            break;
+        case YELLOW_CHASE:
+            if (millis() - lastTick > 100) {
+                for (int i = 0; i < WS2811_COUNT; i++) {
+                    strip.setPixelColor(i, strip.Color(0, 0, 0)); // Off
+                }
+                strip.setPixelColor(ledStage, strip.Color(255, 255, 0));
+                if (ledStage != WS2811_COUNT) {
+                    strip.setPixelColor(ledStage + 1, strip.Color(255, 255, 0));
+                } else {
+                    strip.setPixelColor(0, strip.Color(255, 255, 0));
+                }
+                ledStage += 1;
+                if (ledStage > WS2811_COUNT) {
+                    ledStage = 0;
+                }
+                lastTick = millis();
+            }
+            break;
+        case PURPLE_CHASE:
+            if (millis() - lastTick > 100) {
+                for (int i = 0; i < WS2811_COUNT; i++) {
+                    strip.setPixelColor(i, strip.Color(0, 0, 0)); // Off
+                }
+                strip.setPixelColor(ledStage, strip.Color(0, 255, 255));
+                if (ledStage != WS2811_COUNT) {
+                    strip.setPixelColor(ledStage + 1, strip.Color(0, 255, 255));
+                } else {
+                    strip.setPixelColor(0, strip.Color(0, 255, 255));
+                }
+                ledStage += 1;
+                if (ledStage > WS2811_COUNT) {
                     ledStage = 0;
                 }
                 lastTick = millis();

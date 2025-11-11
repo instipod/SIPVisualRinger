@@ -18,9 +18,9 @@ class Runtime {
         String deviceHostname = "VisualAlert-FFFFF";
         String ethernetIP = "0.0.0.0";
 
-        int idlePattern = PATTERN3;
-        int line1RingPattern = PATTERN10;
-        int line2RingPattern = PATTERN5;
+        int idlePattern = GREEN_SOLID;
+        int line1RingPattern = RED_CHASE;
+        int line2RingPattern = BLUE_CHASE;
         LedManager ledManager;
 
         bool mDNSEnabled = true;
