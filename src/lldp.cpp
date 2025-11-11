@@ -243,8 +243,6 @@ esp_err_t LLDPService::lldpFrameReceiver(esp_eth_handle_t hdl, uint8_t *buffer, 
 
 // Parse received LLDP frame and extract switch information
 void LLDPService::parseLLDPFrame(uint8_t *frame, uint16_t length) {
-    Serial.println("Received LLDP frame (" + String(length) + " bytes)");
-
     // LLDP payload starts after Ethernet header (14 bytes)
     uint16_t pos = 14;
 
