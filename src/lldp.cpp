@@ -1,4 +1,9 @@
 #include <lldp.h>
+#include <ETH.h>
+
+// W5500 register definitions for raw socket mode
+#define SnMR_MACRAW 0x04  // MAC RAW mode
+#define Sn_MR 0x0000      // Socket Mode Register
 
 esp_eth_handle_t LLDPService::getEthHandle() {
   esp_netif_t *netif = esp_netif_get_handle_from_ifkey("ETH_DEF");
@@ -25,17 +30,33 @@ void LLDPService::init() {
     if (eth_handle == NULL) {
         eth_handle = getEthHandle();
         if (eth_handle == NULL) {
-            Serial.println("Warning: Could not get Ethernet handle for LLDP");
+            Serial.println("ERROR: Could not get Ethernet handle for LLDP");
             Serial.println("LLDP will not be available");
         } else {
-            Serial.println("Ethernet handle obtained successfully for LLDP");
+            // Enable promiscuous mode to receive all frames including multicast
+            Serial.println("Enabling promiscuous mode...");
+            bool promiscuous = true;
+            esp_err_t promisc_err = esp_eth_ioctl(eth_handle, ETH_CMD_S_PROMISCUOUS, &promiscuous);
+            if (promisc_err != ESP_OK) {
+                Serial.print("WARNING: Failed to enable promiscuous mode: 0x");
+                Serial.println(promisc_err, HEX);
+                Serial.println("Trying alternate approach - enabling receive all multicast...");
 
-            // Register callback to receive LLDP frames
+                // Try ETH_CMD_S_MULTICAST_ALL as fallback
+                bool rx_allmulti = true;
+                esp_err_t multicast_err = esp_eth_ioctl(eth_handle, (esp_eth_io_cmd_t)0x8003, &rx_allmulti);  // ETH_CMD_S_RX_ALLMULTI
+                if (multicast_err == ESP_OK) {
+                    Serial.println("SUCCESS: Receive all multicast enabled");
+                } else {
+                    Serial.print("WARNING: Failed to enable multicast reception: 0x");
+                    Serial.println(multicast_err, HEX);
+                }
+            }
+
             esp_err_t err = esp_eth_update_input_path(eth_handle, lldpFrameReceiver, this);
-            if (err == ESP_OK) {
-                Serial.println("LLDP frame receiver registered successfully");
-            } else {
-                Serial.println("Failed to register LLDP frame receiver: " + String(err));
+            if (err != ESP_OK) {
+                Serial.print("ERROR: Failed to register LLDP frame receiver: 0x");
+                Serial.println(err, HEX);
             }
         }
     }
@@ -191,7 +212,16 @@ void LLDPService::send() {
 esp_err_t LLDPService::lldpFrameReceiver(esp_eth_handle_t hdl, uint8_t *buffer, uint32_t len, void *priv) {
     LLDPService *service = (LLDPService *)priv;
 
-    // Check if this is an LLDP frame (EtherType 0x88cc)
+    // Check for LLDP multicast destination MAC: 01:80:c2:00:00:0e
+    bool isLldpDest = (len >= 6 &&
+                       buffer[0] == 0x01 &&
+                       buffer[1] == 0x80 &&
+                       buffer[2] == 0xc2 &&
+                       buffer[3] == 0x00 &&
+                       buffer[4] == 0x00 &&
+                       buffer[5] == 0x0e);
+
+    // Check if this is an LLDP frame (EtherType 0x88cc at position 12-13)
     if (len >= 14 && buffer[12] == 0x88 && buffer[13] == 0xcc) {
         service->parseLLDPFrame(buffer, len);
         // Don't forward LLDP frames to the network stack
@@ -313,11 +343,10 @@ void LLDPService::parseLLDPFrame(uint8_t *frame, uint16_t length) {
                 break;
 
             case 8: // Management Address
-                Serial.println("Management Address TLV received");
                 break;
 
             default:
-                Serial.println("Unknown TLV Type: " + String(tlvType) + " Length: " + String(tlvLength));
+                //Serial.println("Unknown TLV Type: " + String(tlvType) + " Length: " + String(tlvLength));
                 break;
         }
 
