@@ -5,7 +5,7 @@
 #include <configstore.h>
 #include <lldp.h>
 #include <ESPmDNS.h>
-#include <leds.h>
+#include <led-manager.h>
 #include "esp_mac.h"
 extern "C" {
 #include "bootloader_random.h"
@@ -18,7 +18,10 @@ class Runtime {
         String deviceHostname = "VisualAlert-FFFFF";
         String ethernetIP = "0.0.0.0";
 
-        int currentLedMode = LED_BOOTUP;
+        int idlePattern = PATTERN3;
+        int line1RingPattern = PATTERN10;
+        int line2RingPattern = PATTERN5;
+        LedManager ledManager;
 
         bool mDNSEnabled = true;
         LLDPService lldp = LLDPService(deviceHostname, "ESP32 SIP Device");

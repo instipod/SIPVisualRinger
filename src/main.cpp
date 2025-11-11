@@ -3,16 +3,10 @@
 #include <ETH.h>
 #include <WebServer.h>
 #include <Preferences.h>
-#include <Adafruit_NeoPixel.h>
 #include <sip.h>
 #include <runtime.h>
-#include <leds.h>
 #include <configserver.h>
 #include <SPI.h>
-
-// Build configuration
-#define WS2811_PIN 2
-#define WS2811_COUNT 10
 
 // Ethernet configuration
 #define ETH_SPI_SCK 13
@@ -29,7 +23,6 @@
 #define RELAY2 5
 
 // Global variables
-Adafruit_NeoPixel strip(WS2811_COUNT, WS2811_PIN, NEO_GRB + NEO_KHZ800);
 Runtime runtime;
 ConfigServer configServer = ConfigServer(runtime);
 
@@ -39,16 +32,11 @@ unsigned long ledFlashInterval = LED_FAST_FLASH;
 
 
 void onIPAddressAssigned() {
-  runtime.currentLedMode = LED_IDLE;
-
   configServer.init();
-
   runtime.ip_begin();
 }
 
 void onIPAddressLost() {
-  runtime.currentLedMode = LED_CONNECTING;
-
   runtime.ip_end();
 }
 
@@ -71,121 +59,24 @@ void WiFiEvent(WiFiEvent_t event) {
   }
 }
 
+int getLEDPattern() {
+  if (runtime.sipLine2.is_registered() && runtime.sipLine2.is_ringing()) {
+    return runtime.line2RingPattern;
+  }
+  if (runtime.sipLine1.is_registered() && runtime.sipLine1.is_ringing()) {
+    return runtime.line1RingPattern;
+  }
+  if (ETH.connected()) {
+    return runtime.idlePattern;
+  }
+  return 0;
+}
+
 void updateLEDs() {
-  // Determine LED mode based on system state
-  LedMode targetMode;
+  runtime.ledManager.setPattern(getLEDPattern());
 
-  // Priority:  BOOTUP, CONNECTING, INCOMING_CALL, SIP_ERROR, IDLE
-  if (runtime.currentLedMode == LED_BOOTUP) {
-    targetMode = LED_BOOTUP;
-    ledFlashInterval = LED_SLOW_FLASH;
-  } else if (ETH.localIP() == IPAddress(0, 0, 0, 0)) {
-    targetMode = LED_CONNECTING;
-    ledFlashInterval = LED_SLOW_FLASH;
-  } else if (runtime.sipLine1.is_registered() && runtime.sipLine1.is_ringing()) {
-    targetMode = LED_INCOMING_CALL;
-    ledFlashInterval = LED_FAST_FLASH;
-  } else if (!runtime.sipLine1.is_registered()) {
-    targetMode = LED_SIP_ERROR;
-    ledFlashInterval = LED_SLOW_FLASH;
-  } else {
-    targetMode = LED_IDLE;
-    ledFlashInterval = LED_FAST_FLASH;
-  }
-  
-  // Update mode if changed
-  if (runtime.currentLedMode != targetMode) {
-    runtime.currentLedMode = targetMode;
-    lastLedToggle = millis();
-    ledState = false;
-  }
-  
-  // Handle LED patterns based on mode
-  switch (runtime.currentLedMode) {
-    case LED_BOOTUP:
-      // Solid red on all LEDs
-      for (int i = 0; i < WS2811_COUNT; i++) {
-        strip.setPixelColor(i, strip.Color(255, 0, 0)); // Red
-      }
-      strip.show();
-      break;
-
-    case LED_CONNECTING:
-      // Slow blue blink on all 3 LEDs
-      if (millis() - lastLedToggle > ledFlashInterval) {
-        ledState = !ledState;
-        if (ledState) {
-          // Blue
-          for (int i = 0; i < WS2811_COUNT; i++) {
-            strip.setPixelColor(i, strip.Color(0, 0, 255)); // Blue
-          }
-        } else {
-          // Off
-          for (int i = 0; i < WS2811_COUNT; i++) {
-            strip.setPixelColor(i, strip.Color(0, 0, 0)); // Off
-          }
-        }
-        strip.show();
-        lastLedToggle = millis();
-      }
-      break;
-
-    case LED_IDLE:
-      // Solid green on alternating LEDs only
-      for (int i = 0; i < WS2811_COUNT; i++) {
-        strip.setPixelColor(i, strip.Color(0, 0, 0)); // Off
-      }
-      strip.setPixelColor(0, strip.Color(0, 128, 0)); // Green
-      strip.setPixelColor(2, strip.Color(0, 128, 0)); // Green
-      strip.setPixelColor(4, strip.Color(0, 128, 0)); // Green
-      strip.setPixelColor(6, strip.Color(0, 128, 0)); // Green
-      strip.setPixelColor(8, strip.Color(0, 128, 0)); // Green
-      strip.show();
-      digitalWrite(RELAY1, LOW);
-      break;
-      
-    case LED_INCOMING_CALL:
-      // Fast alternating red/orange flash on all 3 LEDs
-      if (millis() - lastLedToggle > ledFlashInterval) {
-        ledState = !ledState;
-        if (ledState) {
-          // Red
-          for (int i = 0; i < WS2811_COUNT; i++) {
-            strip.setPixelColor(i, strip.Color(255, 0, 0)); // Red
-          }
-          digitalWrite(RELAY1, HIGH);
-        } else {
-          // Orange
-          for (int i = 0; i < WS2811_COUNT; i++) {
-            strip.setPixelColor(i, strip.Color(255, 165, 0)); // Orange
-          }
-          digitalWrite(RELAY1, LOW);
-        }
-        strip.show();
-        lastLedToggle = millis();
-      }
-      break;
-      
-    case LED_SIP_ERROR:
-      // Slow red blink on all 3 LEDs
-      if (millis() - lastLedToggle > ledFlashInterval) {
-        ledState = !ledState;
-        if (ledState) {
-          // Red
-          for (int i = 0; i < WS2811_COUNT; i++) {
-            strip.setPixelColor(i, strip.Color(255, 0, 0)); // Red
-          }
-        } else {
-          // Off
-          for (int i = 0; i < WS2811_COUNT; i++) {
-            strip.setPixelColor(i, strip.Color(0, 0, 0)); // Off
-          }
-        }
-        strip.show();
-        lastLedToggle = millis();
-      }
-      break;
-  }
+  //One time update while we are booting
+  runtime.ledManager.handle();
 }
 
 void initEthernet() {
@@ -206,7 +97,6 @@ void initEthernet() {
 
   Serial.println("Ethernet is initialized with MAC " + ETH.macAddress());
 
-  runtime.currentLedMode = LED_CONNECTING;
   updateLEDs();
   
   // Wait for connection
@@ -238,8 +128,6 @@ void setup() {
   pinMode(RELAY2, OUTPUT);
   digitalWrite(RELAY1, LOW);
   digitalWrite(RELAY2, LOW);
-  strip.begin();
-  strip.setBrightness(250);
   updateLEDs();
 
   runtime.load_configuration();
@@ -263,10 +151,10 @@ void setup() {
 void loop() {
   // Handle web server
   configServer.handle();
-  
-  // Handle SIP messages
-  runtime.handle();
-  
+    
   // Update LED status
   updateLEDs();
+
+  // Handle SIP messages
+  runtime.handle();
 }

@@ -38,6 +38,9 @@ void Runtime::save_configuration() {
     
     configStore.put_string("webPassword", webPassword);
 
+    configStore.end();
+    configStore.init();
+
     ETH.setHostname(deviceHostname.c_str());
 }
 
@@ -46,6 +49,9 @@ void Runtime::init() {
     // Disables WiFi and BLE
     bootloader_random_enable();
     Serial.println("Cryptographic RNG initialized with ESP32 hardware RNG");
+
+    ledManager.init();
+    Serial.println("LED Manager initialized.");
 }
 
 void Runtime::handle() {
@@ -53,6 +59,8 @@ void Runtime::handle() {
     sipLine2.handle();
 
     lldp.handle();
+
+    ledManager.handle();
 }
 
 void Runtime::ip_begin() {
