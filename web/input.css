@@ -1,0 +1,36 @@
+@import "tailwindcss";
+@source inline("size-1.5");
+@source inline("fill-green-500");
+@source inline("fill-green-400");
+@source inline("fill-red-500");
+@source inline("fill-red-400");
+@source inline("fill-gray-500");
+@source inline("fill-gray-400");
+.tab-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.tab-button.active {
+    color: #4f46e5;
+}
+.dark .tab-button.active {
+    color: #818cf8;
+}
+.tab-button:hover {
+    opacity: 0.8;
+}
+.tab-content {
+    animation: fadeIn 0.3s ease-in;
+}
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

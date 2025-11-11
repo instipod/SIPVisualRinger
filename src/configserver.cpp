@@ -1,4 +1,5 @@
 #include "configserver.h"
+#include "webpages.h"
 
 String ConfigServer::encrypt_cookie(String data) {
   // Pad data to multiple of 16 bytes (AES block size)
@@ -181,36 +182,16 @@ void ConfigServer::init() {
   const char* headerKeys[] = {"Cookie"};
   server.collectHeaders(headerKeys, 1);
 
+  // CSS file
+  server.on("/output.css", HTTP_GET, [&]() {
+    server.send(200, "text/css", css_output);
+  });
+
   // Login page
   server.on("/login", HTTP_GET, [&]() {
-    String html = "<!DOCTYPE html><html><head>";
-    html += "<title>Login - ESP32 SIP Device</title>";
-    html += "<style>body{font-family:Arial;margin:0;padding:0;display:flex;justify-content:center;align-items:center;height:100vh;background:#f0f0f0;} ";
-    html += ".login-box{background:white;padding:40px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1);width:300px;} ";
-    html += "h1{text-align:center;color:#333;margin-bottom:30px;} ";
-    html += "input[type=text],input[type=password]{width:100%;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:5px;box-sizing:border-box;} ";
-    html += "input[type=submit]{width:100%;padding:12px;background:#4CAF50;color:white;border:none;border-radius:5px;cursor:pointer;font-size:16px;margin-top:10px;} ";
-    html += "input[type=submit]:hover{background:#45a049;} ";
-    html += "label{color:#666;font-size:14px;} ";
-    html += ".error{color:red;text-align:center;margin-bottom:10px;}</style>";
-    html += "</head><body>";
-    html += "<div class='login-box'>";
-    html += "<h1>ESP32 SIP Device</h1>";
-
-    // Show error message if login failed
-    if (server.hasArg("error")) {
-      html += "<div class='error'>Invalid username or password</div>";
-    }
-
-    html += "<form action='/login' method='POST'>";
-    html += "<label>Username:</label>";
-    html += "<input type='text' name='username' required autofocus>";
-    html += "<label>Password:</label>";
-    html += "<input type='password' name='password' required>";
-    html += "<input type='submit' value='Login'>";
-    html += "</form>";
-    html += "</div>";
-    html += "</body></html>";
+    String html = String(webpage_login);
+    html.replace("{HOSTNAME}", runtime.deviceHostname);
+    html.replace("{MAC_ADDRESS}", runtime.get_ethernet_mac_address());
     server.send(200, "text/html", html);
   });
 
@@ -257,69 +238,58 @@ void ConfigServer::init() {
       return;
     }
 
-    String html = "<!DOCTYPE html><html><head>";
-    html += "<title>ESP32 SIP/LLDP Configuration</title>";
-    html += "<style>body{font-family:Arial;margin:20px;} ";
-    html += "input[type=text],input[type=number],input[type=password]{width:300px;padding:8px;margin:5px 0;} ";
-    html += "input[type=submit]{padding:10px 20px;background:#4CAF50;color:white;border:none;cursor:pointer;} ";
-    html += ".logout-btn{float:right;padding:10px 20px;background:#f44336;color:white;border:none;cursor:pointer;text-decoration:none;border-radius:5px;} ";
-    html += "label{display:inline-block;width:150px;} ";
-    html += ".status{background:#f0f0f0;padding:15px;margin:20px 0;border-radius:5px;} ";
-    html += "header{overflow:auto;margin-bottom:20px;}</style>";
-    html += "</head><body>";
-    html += "<header><h1 style='float:left;margin:0;'>ESP32 SIP/LLDP Device</h1>";
-    html += "<a href='/logout' class='logout-btn'>Logout</a></header><div style='clear:both;'></div>";
-
-    // Status section
-    html += "<div class='status'>";
-    html += "<h2>Status</h2>";
-    html += "<p><strong>IP Address:</strong> " + runtime.ethernetIP + "</p>";
-    html += "<p><strong>MAC Address:</strong> " + runtime.get_ethernet_mac_address() + "</p>";
-    html += "<p><strong>Hostname:</strong> " + runtime.deviceHostname + "</p>";
-    html += "<p><strong>Link Status:</strong> " + String(ETH.linkUp() ? "Up" : "Down") + "</p>";
-    html += "<p><strong>SIP 1 Status:</strong> " + String(runtime.sipLine1.is_registered() ? "Registered" : "Not Registered") + "</p>";
-    html += "<p><strong>SIP 2 Status:</strong> " + String(runtime.sipLine2.is_registered() ? "Registered" : "Not Registered") + "</p>";
-
-    // LED status with description
-    String ledStatus;
-    switch (runtime.currentLedMode) {
-      case LED_IDLE:
-        ledStatus = "Idle (Green)";
-        break;
-      case LED_INCOMING_CALL:
-        ledStatus = "Incoming Call (Red/Orange Flash)";
-        break;
-      case LED_SIP_ERROR:
-        ledStatus = "SIP Error (Red Blink)";
-        break;
+    String html = String(webpage_dashboard);
+    html.replace("{HOSTNAME}", runtime.deviceHostname);
+    html.replace("{MAC_ADDRESS}", runtime.get_ethernet_mac_address());
+    html.replace("{IP_ADDRESS}", runtime.ethernetIP);
+    if (runtime.lldp.hasValidLLDPData()) {
+      html.replace("{LLDP_NEIGHBOR}", runtime.lldp.getSwitchHostname() + " - " + runtime.lldp.getSwitchPortId());
+    } else {
+      html.replace("{LLDP_NEIGHBOR}", "No LLDP neighbor detected");
     }
-    html += "<p><strong>LED Status:</strong> " + ledStatus + "</p>";
-    html += "</div>";
+    html.replace("{SIP_SERVER_1}", runtime.sipLine1.sipServer);
+    html.replace("{SIP_PORT_1}", String(runtime.sipLine1.sipPort));
+    html.replace("{SIP_USERNAME_1}", runtime.sipLine1.sipUsername);
+    html.replace("{SIP_PASSWORD_1}", runtime.sipLine1.sipPassword);
+    html.replace("{SIP_SERVER_2}", runtime.sipLine2.sipServer);
+    html.replace("{SIP_PORT_2}", String(runtime.sipLine2.sipPort));
+    html.replace("{SIP_USERNAME_2}", runtime.sipLine2.sipUsername);
+    html.replace("{SIP_PASSWORD_2}", runtime.sipLine2.sipPassword);
 
-    // Configuration form
-    html += "<h2>Configuration</h2>";
-    html += "<form action='/save' method='POST'>";
-    html += "<p><label>Hostname:</label><input type='text' name='hostname' value='" + runtime.deviceHostname + "'></p>";
-    html += "<p><label>SIP Server:</label><input type='text' name='sipServer' value='" + runtime.sipLine1.sipServer + "'></p>";
-    html += "<p><label>SIP Port:</label><input type='number' name='sipPort' value='" + String(runtime.sipLine1.sipPort) + "'></p>";
-    html += "<p><label>SIP Username:</label><input type='text' name='sipUsername' value='" + runtime.sipLine1.sipUsername + "'></p>";
-    html += "<p><label>SIP Password:</label><input type='password' name='sipPassword' value='" + runtime.sipLine1.sipPassword + "'></p>";
-    html += "<p><label>SIP Realm:</label><input type='text' name='sipRealm' value='" + runtime.sipLine1.sipRealm + "'></p>";
-    html += "<p><input type='submit' value='Save Configuration'></p>";
-    html += "</form>";
-
-    // Register button
-    html += "<h2>Actions</h2>";
-    html += "<form action='/register' method='POST'>";
-    html += "<input type='submit' value='Register to SIP Server'>";
-    html += "</form>";
-
-    html += "</body></html>";
     server.send(200, "text/html", html);
   });
 
-  // Save configuration
-  server.on("/save", HTTP_POST, [&]() {
+  // Save SIP configuration
+  server.on("/save-sip", HTTP_POST, [&]() {
+    // Check authentication
+    if (!is_authenticated()) {
+      redirect_to_login();
+      return;
+    }
+
+    if (server.hasArg("sip_server_1") && server.hasArg("sip_port_1") && 
+      server.hasArg("sip_username_1") && server.hasArg("sip_password_1")) {
+        runtime.sipLine1.update_credentials(server.arg("sip_server_1"), server.arg("sip_port_1").toInt(),
+        server.arg("sip_username_1"), server.arg("sip_password_1"), server.arg("sip_server_1"));
+    }
+
+    if (server.hasArg("sip_server_2") && server.hasArg("sip_port_2") && 
+      server.hasArg("sip_username_2") && server.hasArg("sip_password_2")) {
+        runtime.sipLine2.update_credentials(server.arg("sip_server_2"), server.arg("sip_port_2").toInt(),
+        server.arg("sip_username_2"), server.arg("sip_password_2"), server.arg("sip_server_2"));
+    }
+
+    runtime.save_configuration();
+
+    runtime.sipLine1.begin_registration();
+    runtime.sipLine2.begin_registration();
+
+    server.sendHeader("Location", "/?save=sip");
+    server.send(303);
+  });
+
+  // Save behavior configuration
+  server.on("/save-behavior", HTTP_POST, [&]() {
     // Check authentication
     if (!is_authenticated()) {
       redirect_to_login();
@@ -327,20 +297,16 @@ void ConfigServer::init() {
     }
 
     if (server.hasArg("hostname")) runtime.deviceHostname = server.arg("hostname");
-    if (server.hasArg("sipServer") && server.hasArg("sipPort") && server.hasArg("sipUsername") && server.hasArg("sipPassword")
-      && server.hasArg("sipRealm")) {
-        runtime.sipLine1.update_credentials(server.arg("sipServer"), server.arg("sipPort").toInt(),
-        server.arg("sipUsername"), server.arg("sipPassword"), server.arg("sipRealm"));
-    }
+    if (server.hasArg("admin_password")) runtime.webPassword = server.arg("admin_password");
 
     runtime.save_configuration();
 
-    server.sendHeader("Location", "/");
+    server.sendHeader("Location", "/?save=behavior");
     server.send(303);
   });
 
   // Manual SIP registration
-  server.on("/register", HTTP_POST, [&]() {
+  server.on("/register-now", HTTP_POST, [&]() {
     // Check authentication
     if (!is_authenticated()) {
       redirect_to_login();
@@ -350,7 +316,7 @@ void ConfigServer::init() {
     runtime.sipLine1.begin_registration();
     runtime.sipLine2.begin_registration();
     
-    server.sendHeader("Location", "/");
+    server.sendHeader("Location", "/?save=register-now");
     server.send(303);
   });
 

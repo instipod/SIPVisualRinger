@@ -6,3 +6,5 @@
 managed_components
 .DS_Store
 */.DS_Store
+src/webpages.h
+web/output.css
