@@ -92,7 +92,7 @@ int getRelayPattern(int config) {
       if (runtime.sipLine2.is_registered() && runtime.sipLine2.is_ringing()) {
         return RELAY_ON;
       }
-      return RELAY_ON;
+      return RELAY_OFF;
       break;
     case ON_WHILE_ERROR:
       if (runtime.sipLine1.is_configured() && !runtime.sipLine1.is_registered()) {
@@ -195,10 +195,6 @@ void setup() {
 
   runtime.init();
 
-  pinMode(RELAY1, OUTPUT);
-  pinMode(RELAY2, OUTPUT);
-  digitalWrite(RELAY1, LOW);
-  digitalWrite(RELAY2, LOW);
   updateLEDs();
 
   runtime.load_configuration();

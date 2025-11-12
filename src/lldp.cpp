@@ -84,8 +84,6 @@ void LLDPService::send() {
         return;
     }
 
-    Serial.println("Sending LLDP frame...");
-
     // Prepare LLDP frame buffer (max 1500 bytes)
     uint8_t lldpFrame[512];
     int framePos = 0;

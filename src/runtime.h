@@ -12,6 +12,8 @@ extern "C" {
 #include "bootloader_random.h"
 }
 
+#define SOFTWARE_VERSION "0.4"
+
 #define RELAY1 6
 #define RELAY2 5
 

@@ -189,10 +189,30 @@ void ConfigServer::init() {
 
   // Login page
   server.on("/login", HTTP_GET, [&]() {
-    String html = String(webpage_login);
-    html.replace("{HOSTNAME}", runtime.deviceHostname);
-    html.replace("{MAC_ADDRESS}", runtime.get_ethernet_mac_address());
-    server.send(200, "text/html", html);
+    // Send response headers first
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200, "text/html", "");
+
+    // Process HTML from PROGMEM in chunks
+    const size_t CHUNK_SIZE = 512;
+    char buffer[CHUNK_SIZE + 1];
+    size_t len = strlen_P(webpage_login);
+    size_t pos = 0;
+
+    while (pos < len) {
+      size_t chunk = min(CHUNK_SIZE, len - pos);
+      memcpy_P(buffer, webpage_login + pos, chunk);
+      buffer[chunk] = '\0';
+
+      String htmlChunk = String(buffer);
+      htmlChunk.replace("{HOSTNAME}", runtime.deviceHostname);
+      htmlChunk.replace("{MAC_ADDRESS}", runtime.get_ethernet_mac_address());
+
+      server.sendContent(htmlChunk);
+      pos += chunk;
+    }
+
+    server.sendContent(""); // Signal end of content
   });
 
   // Login POST handler
@@ -238,26 +258,91 @@ void ConfigServer::init() {
       return;
     }
 
-    String html = String(webpage_dashboard);
-    html.replace("{HOSTNAME}", runtime.deviceHostname);
-    html.replace("{MAC_ADDRESS}", runtime.get_ethernet_mac_address());
-    html.replace("{IP_ADDRESS}", runtime.ethernetIP);
-    if (runtime.lldp.hasValidLLDPData()) {
-      html.replace("{LLDP_NEIGHBOR}", runtime.lldp.getSwitchHostname() + " - " + runtime.lldp.getSwitchPortId());
-    } else {
-      html.replace("{LLDP_NEIGHBOR}", "No LLDP neighbor detected");
-    }
-    html.replace("{SIP_SERVER_1}", runtime.sipLine1.sipServer);
-    html.replace("{SIP_PORT_1}", String(runtime.sipLine1.sipPort));
-    html.replace("{SIP_USERNAME_1}", runtime.sipLine1.sipUsername);
-    html.replace("{SIP_PASSWORD_1}", runtime.sipLine1.sipPassword);
-    html.replace("{SIP_SERVER_2}", runtime.sipLine2.sipServer);
-    html.replace("{SIP_PORT_2}", String(runtime.sipLine2.sipPort));
-    html.replace("{SIP_USERNAME_2}", runtime.sipLine2.sipUsername);
-    html.replace("{SIP_PASSWORD_2}", runtime.sipLine2.sipPassword);
-    html.replace("{LED_PATTERN}", String(runtime.ledManager.runningPattern));
+    // Send response headers first
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200, "text/html", "");
 
-    server.send(200, "text/html", html);
+    // Process HTML from PROGMEM in chunks to avoid RAM issues
+    const size_t CHUNK_SIZE = 768;
+    const size_t OVERLAP = 50; // Overlap to handle placeholders split across chunks
+    char buffer[CHUNK_SIZE + OVERLAP + 1];
+    size_t len = strlen_P(webpage_dashboard);
+    size_t pos = 0;
+    String carryOver = "";
+
+    while (pos < len) {
+      size_t chunk = min(CHUNK_SIZE, len - pos);
+      memcpy_P(buffer, webpage_dashboard + pos, chunk);
+      buffer[chunk] = '\0';
+
+      String htmlChunk = carryOver + String(buffer);
+      carryOver = "";
+
+      // Replace placeholders
+      htmlChunk.replace("{HOSTNAME}", runtime.deviceHostname);
+      htmlChunk.replace("{MAC_ADDRESS}", runtime.get_ethernet_mac_address());
+      htmlChunk.replace("{IP_ADDRESS}", runtime.ethernetIP);
+      if (runtime.lldp.hasValidLLDPData()) {
+        htmlChunk.replace("{LLDP_NEIGHBOR}", runtime.lldp.getSwitchHostname() + " - " + runtime.lldp.getSwitchPortId());
+      } else {
+        htmlChunk.replace("{LLDP_NEIGHBOR}", "No LLDP neighbor detected");
+      }
+      htmlChunk.replace("{LED_PATTERN}", String(runtime.ledManager.runningPattern));
+      htmlChunk.replace("{RELAY_PATTERN_1}", String(runtime.relay1.relayState));
+      htmlChunk.replace("{RELAY_PATTERN_2}", String(runtime.relay2.relayState));
+      htmlChunk.replace("{SOFTWARE_VERSION}", SOFTWARE_VERSION);
+
+      if (runtime.sipLine1.is_registered() && runtime.sipLine1.is_ringing()) {
+        htmlChunk.replace("{LINE_1_STATUS}", "ringing");
+      } else if (runtime.sipLine1.is_registered()) {
+        htmlChunk.replace("{LINE_1_STATUS}", "registered");
+      } else if (runtime.sipLine1.is_configured()) {
+        htmlChunk.replace("{LINE_1_STATUS}", "configured");
+      } else {
+        htmlChunk.replace("{LINE_1_STATUS}", "notconfigured");
+      }
+
+      if (runtime.sipLine2.is_registered() && runtime.sipLine1.is_ringing()) {
+        htmlChunk.replace("{LINE_2_STATUS}", "ringing");
+      } else if (runtime.sipLine2.is_registered()) {
+        htmlChunk.replace("{LINE_2_STATUS}", "registered");
+      } else if (runtime.sipLine2.is_configured()) {
+        htmlChunk.replace("{LINE_2_STATUS}", "configured");
+      } else {
+        htmlChunk.replace("{LINE_2_STATUS}", "notconfigured");
+      }
+
+      htmlChunk.replace("{SIP_SERVER_1}", runtime.sipLine1.sipServer);
+      htmlChunk.replace("{SIP_PORT_1}", String(runtime.sipLine1.sipPort));
+      htmlChunk.replace("{SIP_USERNAME_1}", runtime.sipLine1.sipUsername);
+      htmlChunk.replace("{SIP_PASSWORD_1}", runtime.sipLine1.sipPassword);
+      htmlChunk.replace("{SIP_SERVER_2}", runtime.sipLine2.sipServer);
+      htmlChunk.replace("{SIP_PORT_2}", String(runtime.sipLine2.sipPort));
+      htmlChunk.replace("{SIP_USERNAME_2}", runtime.sipLine2.sipUsername);
+      htmlChunk.replace("{SIP_PASSWORD_2}", runtime.sipLine2.sipPassword);
+
+      htmlChunk.replace("{LED_IDLE}", String(runtime.idlePattern));
+      htmlChunk.replace("{LED_RING_1}", String(runtime.line1RingPattern));
+      htmlChunk.replace("{LED_RING_2}", String(runtime.line2RingPattern));
+      htmlChunk.replace("{LED_ERROR_1}", String(runtime.line1ErrorPattern));
+      htmlChunk.replace("{LED_ERROR_2}", String(runtime.line2ErrorPattern));
+
+      htmlChunk.replace("{RELAY_1}", String(runtime.relay1Config));
+      htmlChunk.replace("{RELAY_2}", String(runtime.relay2Config));
+
+      // If not the last chunk, save the last OVERLAP characters for next iteration
+      if (pos + chunk < len) {
+        size_t sendLen = htmlChunk.length() - OVERLAP;
+        server.sendContent(htmlChunk.substring(0, sendLen));
+        carryOver = htmlChunk.substring(sendLen);
+      } else {
+        server.sendContent(htmlChunk);
+      }
+
+      pos += chunk;
+    }
+
+    server.sendContent(""); // Signal end of content
   });
 
   // Save SIP configuration
@@ -297,12 +382,35 @@ void ConfigServer::init() {
       return;
     }
 
+    if (server.hasArg("led_idle")) runtime.idlePattern = server.arg("led_idle").toInt();
+    if (server.hasArg("led_ring_1")) runtime.line1RingPattern = server.arg("led_ring_1").toInt();
+    if (server.hasArg("led_ring_2")) runtime.line2RingPattern = server.arg("led_ring_2").toInt();
+    if (server.hasArg("led_error_1")) runtime.line1ErrorPattern = server.arg("led_error_1").toInt();
+    if (server.hasArg("led_error_2")) runtime.line2ErrorPattern = server.arg("led_error_2").toInt();
+
+    if (server.hasArg("relay_1")) runtime.relay1Config = server.arg("relay_1").toInt();
+    if (server.hasArg("relay_2")) runtime.relay2Config = server.arg("relay_2").toInt();
+
+    runtime.save_configuration();
+
+    server.sendHeader("Location", "/?save=behavior");
+    server.send(303);
+  });
+
+  // Save Device configuration
+  server.on("/save-device", HTTP_POST, [&]() {
+    // Check authentication
+    if (!is_authenticated()) {
+      redirect_to_login();
+      return;
+    }
+
     if (server.hasArg("hostname")) runtime.deviceHostname = server.arg("hostname");
     if (server.hasArg("admin_password")) runtime.webPassword = server.arg("admin_password");
 
     runtime.save_configuration();
 
-    server.sendHeader("Location", "/?save=behavior");
+    server.sendHeader("Location", "/?save=device");
     server.send(303);
   });
 

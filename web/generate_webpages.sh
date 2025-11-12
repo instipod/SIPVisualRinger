@@ -28,8 +28,8 @@ for html_file in *.html; do
     # Create variable name (e.g., login.html -> webpage_login)
     var_name="webpage_${filename}"
 
-    # Start the variable declaration
-    echo "const char ${var_name}[] = " >> "$OUTPUT_FILE"
+    # Start the variable declaration with PROGMEM
+    echo "const char ${var_name}[] PROGMEM = " >> "$OUTPUT_FILE"
 
     # Read the HTML file line by line and escape it
     while IFS= read -r line || [ -n "$line" ]; do
@@ -51,8 +51,8 @@ if [ -f "$css_file" ]; then
     # Create variable name for CSS
     var_name="css_output"
 
-    # Start the variable declaration
-    echo "const char ${var_name}[] = " >> "$OUTPUT_FILE"
+    # Start the variable declaration with PROGMEM
+    echo "const char ${var_name}[] PROGMEM = " >> "$OUTPUT_FILE"
 
     # Read the CSS file line by line and escape it
     while IFS= read -r line || [ -n "$line" ]; do
