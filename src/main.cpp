@@ -18,10 +18,6 @@
 #define ETH_PHY_ADDR 1
 #define ETH_PHY_TYPE ETH_PHY_W5500
 
-// Relay configuration
-#define RELAY1 6
-#define RELAY2 5
-
 // Global variables
 Runtime runtime;
 ConfigServer configServer = ConfigServer(runtime);
@@ -72,8 +68,83 @@ int getLEDPattern() {
   return 0;
 }
 
+int getRelayPattern(int config) {
+  switch(config) {
+    case RELAY_DISABLED:
+      return RELAY_OFF;
+      break;
+    case ON_WHILE_RINGING:
+      if (runtime.sipLine2.is_registered() && runtime.sipLine2.is_ringing()) {
+        return RELAY_ON;
+      }
+      if (runtime.sipLine1.is_registered() && runtime.sipLine1.is_ringing()) {
+        return RELAY_ON;
+      }
+      return RELAY_OFF;
+      break;
+    case ON_WHILE_LINE1:
+      if (runtime.sipLine1.is_registered() && runtime.sipLine1.is_ringing()) {
+        return RELAY_ON;
+      }
+      return RELAY_OFF;
+      break;
+    case ON_WHILE_LINE2:
+      if (runtime.sipLine2.is_registered() && runtime.sipLine2.is_ringing()) {
+        return RELAY_ON;
+      }
+      return RELAY_ON;
+      break;
+    case ON_WHILE_ERROR:
+      if (runtime.sipLine1.is_configured() && !runtime.sipLine1.is_registered()) {
+        return RELAY_ON;
+      }
+      if (runtime.sipLine2.is_configured() && !runtime.sipLine2.is_registered()) {
+        return RELAY_ON;
+      }
+      return RELAY_OFF;
+      break;
+    case TOGGLE_WHILE_RINGING:
+      if (runtime.sipLine2.is_registered() && runtime.sipLine2.is_ringing()) {
+        return TOGGLE;
+      }
+      if (runtime.sipLine1.is_registered() && runtime.sipLine1.is_ringing()) {
+        return TOGGLE;
+      }
+      return RELAY_OFF;
+      break;
+    case TOGGLE_WHILE_LINE1:
+      if (runtime.sipLine1.is_registered() && runtime.sipLine1.is_ringing()) {
+        return TOGGLE;
+      }
+      return RELAY_OFF;
+      break;
+    case TOGGLE_WHILE_LINE2:
+      if (runtime.sipLine2.is_registered() && runtime.sipLine2.is_ringing()) {
+        return TOGGLE;
+      }
+      return RELAY_OFF;
+      break;
+    case TOGGLE_WHILE_ERROR:
+      if (runtime.sipLine1.is_configured() && !runtime.sipLine1.is_registered()) {
+        return TOGGLE;
+      }
+      if (runtime.sipLine2.is_configured() && !runtime.sipLine2.is_registered()) {
+        return TOGGLE;
+      }
+      return RELAY_OFF;
+      break;
+    default:
+      return RELAY_OFF;
+      break;
+  }
+  return RELAY_OFF;
+}
+
 void updateLEDs() {
   runtime.ledManager.setPattern(getLEDPattern());
+
+  runtime.relay1.setState(getRelayPattern(runtime.relay1Config));
+  runtime.relay2.setState(getRelayPattern(runtime.relay2Config));
 
   //One time update while we are booting
   runtime.ledManager.handle();

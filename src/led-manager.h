@@ -10,7 +10,7 @@
 #define WS2811_COUNT 10
 
 enum LedPattern {
-  OFF, //Dark
+  LED_OFF, //Dark
   RED_SOLID, //Red Solid
   GREEN_SOLID, //Green Solid
   BLUE_SOLID, //Blue Solid
@@ -41,7 +41,7 @@ class LedManager {
     long lastTick = 0;
     int ledStage = 0;
   public:
-    int runningPattern = OFF;
+    int runningPattern = LED_OFF;
 
     LedManager();
     void setPattern(int pattern);

@@ -23,7 +23,7 @@ void LedManager::init() {
 
 void LedManager::handle() {
     switch (runningPattern) {
-        case OFF:
+        case LED_OFF:
             if (millis() - lastTick > 1000) {
                 for (int i = 0; i < WS2811_COUNT; i++) {
                     strip.setPixelColor(i, strip.Color(0, 0, 0)); // Off

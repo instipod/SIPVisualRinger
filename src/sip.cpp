@@ -386,6 +386,10 @@ void SIPClient::end() {
     udpSIP.stop();
 }
 
+bool SIPClient::is_configured() {
+    return (this->sipServer != "" && this->sipUsername != "" && this->sipPassword != "");
+}
+
 SIPClient::SIPClient(int localSipPort) {
     this->sipServer = "";
     this->sipPort = 5060;

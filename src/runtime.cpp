@@ -52,6 +52,10 @@ void Runtime::init() {
 
     ledManager.init();
     Serial.println("LED Manager initialized.");
+
+    relay1.init();
+    relay2.init();
+    Serial.println("Relay Manager initialized.");
 }
 
 void Runtime::handle() {
@@ -61,6 +65,9 @@ void Runtime::handle() {
     lldp.handle();
 
     ledManager.handle();
+
+    relay1.handle();
+    relay2.handle();
 }
 
 void Runtime::ip_begin() {

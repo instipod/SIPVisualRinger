@@ -6,10 +6,14 @@
 #include <lldp.h>
 #include <ESPmDNS.h>
 #include <led-manager.h>
+#include <relay-manager.h>
 #include "esp_mac.h"
 extern "C" {
 #include "bootloader_random.h"
 }
+
+#define RELAY1 6
+#define RELAY2 5
 
 class Runtime {
     public:
@@ -21,7 +25,14 @@ class Runtime {
         int idlePattern = GREEN_SOLID;
         int line1RingPattern = RED_CHASE;
         int line2RingPattern = BLUE_CHASE;
+        int line1ErrorPattern = RED_SOLID;
+        int line2ErrorPattern = RED_SOLID;
         LedManager ledManager;
+
+        int relay1Config = ON_WHILE_LINE1;
+        int relay2Config = ON_WHILE_LINE2;
+        RelayManager relay1 = RelayManager(RELAY1);
+        RelayManager relay2 = RelayManager(RELAY2);
 
         bool mDNSEnabled = true;
         LLDPService lldp = LLDPService(deviceHostname, "ESP32 SIP Device");

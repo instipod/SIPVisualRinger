@@ -41,6 +41,7 @@ class SIPClient {
         void end();
         bool is_registered();
         bool is_ringing();
+        bool is_configured();
 
         void begin_registration();
         void end_registration(bool networkLost);
